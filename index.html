@@ -1,0 +1,2677 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>推し活うちわメーカー</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Zen Maru Gothic & Dela Gothic One & Kaisei Decol（うちわ文字向けフォント） -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Kaisei+Decol:wght@700&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Three.js & OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body {
+            font-family: 'Zen Maru Gothic', sans-serif;
+            background-color: #FAFAFA;
+            color: #18181B;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* カスタムカラーピッカーのスタイリング */
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            cursor: pointer;
+            padding: 0;
+            background: none;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border: 2px solid #E4E4E7;
+            border-radius: 50%;
+        }
+        /* カスタムスクロールバー */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #F4F4F5;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #D4D4D8;
+            border-radius: 9999px;
+        }
+        /* モーダル画像の長押し保存を許可する */
+        #modal-preview-img {
+            -webkit-touch-callout: default !important;
+            user-select: auto !important;
+            -webkit-user-select: auto !important;
+            pointer-events: auto !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-6 px-4 sm:px-6">
+    <!-- アプリ内ブラウザ検知バナー -->
+    <div id="webview-banner" class="hidden w-full max-w-md mb-4 bg-amber-50 border-2 border-amber-400 rounded-2xl p-4 shadow-sm flex flex-col gap-2.5">
+        <div class="flex items-start gap-2.5">
+            <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-600 text-white text-xs font-bold shrink-0 mt-0.5">!</span>
+            <div class="flex flex-col gap-1">
+                <p class="text-xs font-bold text-amber-950">アプリ内ブラウザで開いています</p>
+                <p class="text-[11px] text-amber-900 leading-relaxed">
+                    画面内では、仕様により<span class="font-bold underline">画像の保存・共有メニューが制限</span>されることがあります。右上の「…」または共有アイコンから<span class="font-bold text-amber-950">「Safariで開く / ブラウザで開く」</span>を選んでご利用ください！
+                </p>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2 pt-0.5">
+            <button type="button" id="open-external-browser-btn" class="py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold transition-colors text-center">
+                外部ブラウザで開く
+            </button>
+            <button type="button" id="copy-page-url-btn" class="py-2 px-3 rounded-xl bg-white border border-amber-300 hover:bg-amber-100 text-amber-900 text-[11px] font-bold transition-colors text-center">
+                URLをコピーする
+            </button>
+        </div>
+    </div>
+
+    <!-- メインコンテナ（清潔感のある白ベースUI） -->
+    <div class="w-full max-w-md bg-white border border-zinc-200 rounded-3xl p-6 sm:p-8 flex flex-col gap-6 shadow-sm">
+        
+        <!-- ヘッダー -->
+        <header class="text-center border-b border-zinc-100 pb-3">
+            <h1 class="text-xl font-bold tracking-wider text-zinc-900">UCHIWA MAKER</h1>
+            <p class="text-xs text-zinc-400 mt-1">オリジナル3D推し活うちわ作成＆共有</p>
+        </header>
+
+        <!-- プレビュー（常に上部で固定表示・操作しながらリアルタイム確認可能） -->
+        <section class="sticky top-2 z-30 bg-white/95 backdrop-blur-sm pb-2 pt-1 flex flex-col gap-1.5 border-b border-zinc-100">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <h2 class="text-xs font-bold text-zinc-800">3Dプレビュー</h2>
+                    <button type="button" id="toggle-bg-btn" class="px-2 py-0.5 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-600 text-[10px] font-bold transition-colors">
+                        背景：スタジオ白
+                    </button>
+                </div>
+                <span class="text-[10px] text-zinc-400">ドラッグで回転・ピンチで拡大</span>
+            </div>
+            
+            <!-- 3Dキャンバスコンテナ -->
+            <div class="relative w-full h-64 sm:h-72 bg-zinc-100 border border-zinc-200 rounded-2xl overflow-hidden shadow-inner transition-colors duration-300" id="canvas-container">
+                <canvas id="three-canvas" class="w-full h-full block outline-none"></canvas>
+                
+                <!-- プレビューコントロール（右上：振りアニメーションボタン） -->
+                <div class="absolute top-2.5 right-2.5 flex items-center gap-1.5 z-10">
+                    <button type="button" id="toggle-swing-btn" class="px-3 py-1.5 rounded-full bg-white/90 backdrop-blur border border-zinc-200 text-zinc-800 text-[11px] font-bold hover:bg-white transition-all shadow-sm flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+                        <i id="swing-icon" class="fa-solid fa-play text-[10px]"></i>
+                        <span id="swing-label">振る</span>
+                    </button>
+                </div>
+
+                <!-- プレビューの位置・視点リセットボタン（左下） -->
+                <button type="button" id="reset-pos-btn" class="absolute bottom-2.5 left-2.5 px-3 py-1.5 rounded-full bg-white/90 backdrop-blur border border-zinc-200 text-zinc-800 text-[11px] font-bold hover:bg-white transition-all shadow-sm flex items-center gap-1 z-10 whitespace-nowrap" title="位置と視点をリセット">
+                    <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
+                    <span>正面に戻す</span>
+                </button>
+
+                <!-- 裏面を見るボタン（右下） -->
+                <button type="button" id="flip-back-btn" class="absolute bottom-2.5 right-2.5 px-3 py-1.5 rounded-full bg-white/90 backdrop-blur border border-zinc-200 text-zinc-800 text-[11px] font-bold hover:bg-white transition-all shadow-sm z-10 whitespace-nowrap" title="うちわを裏返す">
+                    裏面を見る
+                </button>
+            </div>
+        </section>
+
+        <!-- 推し色テーマカラーセット（一括配色プリセット） -->
+        <section class="flex flex-col gap-2.5 bg-zinc-50 border border-zinc-200 rounded-2xl p-3.5">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-zinc-800">推し色テーマカラーセット</span>
+                <span class="text-[10px] text-zinc-400">タップで全体を一括着せ替え</span>
+            </div>
+            <div class="grid grid-cols-5 gap-1.5" id="theme-preset-buttons">
+                <button type="button" data-theme="pink" class="theme-btn py-2 px-1 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-[11px] font-bold text-zinc-800 flex items-center justify-center gap-1.5 transition-all active:scale-95">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#FF4D8D] shrink-0"></span>
+                    <span>ピンク</span>
+                </button>
+                <button type="button" data-theme="red" class="theme-btn py-2 px-1 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-[11px] font-bold text-zinc-800 flex items-center justify-center gap-1.5 transition-all active:scale-95">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#EF4444] shrink-0"></span>
+                    <span>レッド</span>
+                </button>
+                <button type="button" data-theme="orange" class="theme-btn py-2 px-1 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-[11px] font-bold text-zinc-800 flex items-center justify-center gap-1.5 transition-all active:scale-95">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#F97316] shrink-0"></span>
+                    <span>オレンジ</span>
+                </button>
+                <button type="button" data-theme="yellow" class="theme-btn py-2 px-1 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-[11px] font-bold text-zinc-800 flex items-center justify-center gap-1.5 transition-all active:scale-95">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#FACC15] shrink-0"></span>
+                    <span>イエロー</span>
+                </button>
+                <button type="button" data-theme="green" class="theme-btn py-2 px-1 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-[11px] font-bold text-zinc-800 flex items-center justify-center gap-1.5 transition-all active:scale-95">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#10B981] shrink-0"></span>
+                    <span>グリーン</span>
+                </button>
+                <button type="button" data-theme="lightblue" class="theme-btn py-2 px-1 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-[11px] font-bold text-zinc-800 flex items-center justify-center gap-1.5 transition-all active:scale-95">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#38BDF8] shrink-0"></span>
+                    <span>水色</span>
+                </button>
+                <button type="button" data-theme="blue" class="theme-btn py-2 px-1 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-[11px] font-bold text-zinc-800 flex items-center justify-center gap-1.5 transition-all active:scale-95">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#2563EB] shrink-0"></span>
+                    <span>ブルー</span>
+                </button>
+                <button type="button" data-theme="purple" class="theme-btn py-2 px-1 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-[11px] font-bold text-zinc-800 flex items-center justify-center gap-1.5 transition-all active:scale-95">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#A855F7] shrink-0"></span>
+                    <span>パープル</span>
+                </button>
+                <button type="button" data-theme="white" class="theme-btn py-2 px-1 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-[11px] font-bold text-zinc-800 flex items-center justify-center gap-1.5 transition-all active:scale-95">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#F4F4F5] border border-zinc-400 shrink-0"></span>
+                    <span>ホワイト</span>
+                </button>
+                <button type="button" data-theme="black" class="theme-btn py-2 px-1 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-[11px] font-bold text-zinc-800 flex items-center justify-center gap-1.5 transition-all active:scale-95">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#27272A] shrink-0"></span>
+                    <span>ブラック</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- ① うちわの形状・ベースデザイン -->
+        <section class="flex flex-col gap-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="w-5 h-5 rounded-full bg-zinc-900 text-white text-xs flex items-center justify-center font-bold">1</span>
+                    <h2 class="text-sm font-bold text-zinc-800">うちわの形・ベース設定</h2>
+                </div>
+                <span id="selected-shape-badge" class="text-[11px] font-bold text-zinc-500 bg-zinc-100 px-2.5 py-0.5 rounded-full">選択中：ジャンボうちわ</span>
+            </div>
+
+            <!-- 形状選択ボタン -->
+            <div class="grid grid-cols-3 gap-2" id="shape-buttons">
+                <button type="button" data-shape="standard" class="shape-btn py-2.5 px-2 rounded-2xl border text-xs font-bold transition-all shadow-sm bg-zinc-900 text-white border-zinc-900 whitespace-nowrap">
+                    ジャンボうちわ
+                </button>
+                <button type="button" data-shape="heart" class="shape-btn py-2.5 px-2 rounded-2xl border text-xs font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap">
+                    ハート型
+                </button>
+                <button type="button" data-shape="cat" class="shape-btn py-2.5 px-2 rounded-2xl border text-xs font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap">
+                    猫耳型
+                </button>
+                <button type="button" data-shape="rabbit" class="shape-btn py-2.5 px-2 rounded-2xl border text-xs font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap">
+                    うさ耳型
+                </button>
+                <button type="button" data-shape="bear" class="shape-btn py-2.5 px-2 rounded-2xl border text-xs font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap">
+                    くま耳型
+                </button>
+                <button type="button" data-shape="dog" class="shape-btn py-2.5 px-2 rounded-2xl border text-xs font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap">
+                    犬耳型
+                </button>
+            </div>
+
+            <!-- うちわ面の背景色＆骨組みカラー -->
+            <div class="grid grid-cols-1 gap-2.5 bg-zinc-50 border border-zinc-200 rounded-2xl p-3">
+                <!-- うちわ面の色 -->
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <input type="color" id="base-color-picker" value="#18181B">
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold text-zinc-800">うちわ面のカラー</span>
+                            <span id="base-color-hex" class="text-[11px] text-zinc-400 font-mono">#18181B</span>
+                        </div>
+                    </div>
+                    <div class="flex gap-1.5" id="base-preset-colors">
+                        <button type="button" data-color="#27272A" class="w-6 h-6 rounded-full border border-zinc-300 bg-[#27272A] hover:scale-110 transition-transform" aria-label="ブラック"></button>
+                        <button type="button" data-color="#F4F4F5" class="w-6 h-6 rounded-full border border-zinc-300 bg-[#F4F4F5] hover:scale-110 transition-transform" aria-label="ホワイト"></button>
+                        <button type="button" data-color="#FF4D8D" class="w-6 h-6 rounded-full border border-zinc-200 bg-[#FF4D8D] hover:scale-110 transition-transform" aria-label="ピンク"></button>
+                        <button type="button" data-color="#3B82F6" class="w-6 h-6 rounded-full border border-zinc-200 bg-[#3B82F6] hover:scale-110 transition-transform" aria-label="ブルー"></button>
+                        <button type="button" data-color="#FACC15" class="w-6 h-6 rounded-full border border-zinc-200 bg-[#FACC15] hover:scale-110 transition-transform" aria-label="イエロー"></button>
+                    </div>
+                </div>
+
+                <!-- うちわ柄・フチカラー -->
+                <div class="flex items-center justify-between pt-2 border-t border-zinc-200">
+                    <div class="flex items-center gap-2.5">
+                        <input type="color" id="handle-color-picker" value="#18181B">
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold text-zinc-800">持ち手＆フチカラー</span>
+                            <span id="handle-color-hex" class="text-[11px] text-zinc-400 font-mono">#18181B</span>
+                        </div>
+                    </div>
+                    <div class="flex gap-1.5" id="handle-preset-colors">
+                        <button type="button" data-color="#27272A" class="w-6 h-6 rounded-full border border-zinc-300 bg-[#27272A] hover:scale-110 transition-transform" aria-label="ブラック"></button>
+                        <button type="button" data-color="#F4F4F5" class="w-6 h-6 rounded-full border border-zinc-300 bg-[#F4F4F5] hover:scale-110 transition-transform" aria-label="ホワイト"></button>
+                        <button type="button" data-color="#FF4D8D" class="w-6 h-6 rounded-full border border-zinc-200 bg-[#FF4D8D] hover:scale-110 transition-transform" aria-label="ピンク"></button>
+                        <button type="button" data-color="#3B82F6" class="w-6 h-6 rounded-full border border-zinc-200 bg-[#3B82F6] hover:scale-110 transition-transform" aria-label="ブルー"></button>
+                        <button type="button" data-color="#FACC15" class="w-6 h-6 rounded-full border border-zinc-200 bg-[#FACC15] hover:scale-110 transition-transform" aria-label="イエロー"></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 背景パターン選択 -->
+            <div class="flex flex-col gap-1.5">
+                <span class="text-xs font-bold text-zinc-700">うちわ面の背景柄</span>
+                <div class="grid grid-cols-4 gap-1.5" id="bg-pattern-buttons">
+                    <button type="button" data-pattern="solid" class="pattern-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-zinc-900 text-white border-zinc-900 shadow-sm whitespace-nowrap">
+                        無地
+                    </button>
+                    <button type="button" data-pattern="dots" class="pattern-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap">
+                        水玉ドット
+                    </button>
+                    <button type="button" data-pattern="gingham" class="pattern-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap">
+                        ギンガム
+                    </button>
+                    <button type="button" data-pattern="glitter" class="pattern-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap">
+                        グリッター風
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ② うちわ文字（メインメッセージ・ファンサ） -->
+        <section class="flex flex-col gap-3 border-t border-zinc-100 pt-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="w-5 h-5 rounded-full bg-zinc-900 text-white text-xs flex items-center justify-center font-bold">2</span>
+                    <h2 class="text-sm font-bold text-zinc-800">うちわ文字（名前・ファンサ）</h2>
+                </div>
+            </div>
+
+            <!-- ファンサ定型文クイック入力 -->
+            <div class="flex flex-wrap gap-1.5" id="preset-text-chips">
+                <button type="button" data-text="指差し&#10;して" class="text-chip px-2.5 py-1 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-[11px] font-bold transition-colors">指差しして</button>
+                <button type="button" data-text="バーンして" class="text-chip px-2.5 py-1 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-[11px] font-bold transition-colors">バーンして</button>
+                <button type="button" data-text="ウインク&#10;して" class="text-chip px-2.5 py-1 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-[11px] font-bold transition-colors">ウインクして</button>
+                <button type="button" data-text="ハート&#10;作って" class="text-chip px-2.5 py-1 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-[11px] font-bold transition-colors">ハート作って</button>
+                <button type="button" data-text="〇〇&#10;だいすき" class="text-chip px-2.5 py-1 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-[11px] font-bold transition-colors">〇〇だいすき</button>
+            </div>
+
+            <textarea id="main-text" rows="2" placeholder="例：指差し&#10;して（Enterで改行できます）" maxlength="30"
+                class="w-full px-4 py-3 rounded-2xl border border-zinc-200 bg-zinc-50 text-zinc-900 placeholder-zinc-400 focus:bg-white focus:outline-none focus:border-zinc-900 text-sm transition-colors resize-y leading-relaxed font-bold">指差し
+して</textarea>
+            <!-- フォントスタイル選択 -->
+            <div class="grid grid-cols-3 gap-1.5" id="font-buttons">
+                <button type="button" data-font="pop" class="font-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-zinc-900 text-white border-zinc-900 shadow-sm">
+                    極太ポップ
+                </button>
+                <button type="button" data-font="maru" class="font-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50">
+                    まる文字
+                </button>
+                <button type="button" data-font="cute" class="font-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50">
+                    飾り明朝
+                </button>
+            </div>
+
+            <!-- 文字カラー＆フチ取りカラー -->
+            <div class="flex flex-col gap-2.5 bg-zinc-50 border border-zinc-200 rounded-2xl p-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <input type="color" id="text-color-picker" value="#FF4D8D">
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold text-zinc-800">文字カラー</span>
+                            <span id="text-color-hex" class="text-[11px] text-zinc-400 font-mono">#FF4D8D</span>
+                        </div>
+                    </div>
+                    <div class="flex gap-1.5" id="text-preset-colors">
+                        <button type="button" data-color="#27272A" class="w-6 h-6 rounded-full border border-zinc-300 bg-[#27272A] hover:scale-110 transition-transform" aria-label="ブラック"></button>
+                        <button type="button" data-color="#F4F4F5" class="w-6 h-6 rounded-full border border-zinc-300 bg-[#F4F4F5] hover:scale-110 transition-transform" aria-label="ホワイト"></button>
+                        <button type="button" data-color="#FF4D8D" class="w-6 h-6 rounded-full border border-zinc-200 bg-[#FF4D8D] hover:scale-110 transition-transform" aria-label="ピンク"></button>
+                        <button type="button" data-color="#3B82F6" class="w-6 h-6 rounded-full border border-zinc-200 bg-[#3B82F6] hover:scale-110 transition-transform" aria-label="ブルー"></button>
+                        <button type="button" data-color="#FACC15" class="w-6 h-6 rounded-full border border-zinc-200 bg-[#FACC15] hover:scale-110 transition-transform" aria-label="イエロー"></button>
+                    </div>
+                </div>
+
+                <!-- 3重フチ取りカラー（内側フチ・外側フチ） -->
+                <div class="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-200">
+                    <div class="flex items-center gap-2">
+                        <input type="color" id="outline1-color-picker" value="#FFFFFF">
+                        <div class="flex flex-col">
+                            <span class="text-[11px] font-bold text-zinc-800">内フチ色</span>
+                            <span id="outline1-color-hex" class="text-[10px] text-zinc-400 font-mono">#FFFFFF</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="color" id="outline2-color-picker" value="#FF85B3">
+                        <div class="flex flex-col">
+                            <span class="text-[11px] font-bold text-zinc-800">外フチ色</span>
+                            <span id="outline2-color-hex" class="text-[10px] text-zinc-400 font-mono">#FF85B3</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 文字サイズ・位置・角度調整 -->
+                <div class="flex flex-col gap-2 pt-2 border-t border-zinc-200">
+                    <div class="flex flex-col gap-0.5">
+                        <div class="flex justify-between text-[11px] text-zinc-500">
+                            <span>文字サイズ</span>
+                            <span id="text-size-val">1.00</span>
+                        </div>
+                        <input type="range" id="text-size-slider" min="0.5" max="1.6" step="0.05" value="1.0" class="accent-zinc-900 cursor-pointer">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="flex flex-col gap-0.5">
+                            <div class="flex justify-between text-[11px] text-zinc-500">
+                                <span>上下位置</span>
+                                <span id="text-y-val">0</span>
+                            </div>
+                            <input type="range" id="text-y-slider" min="-150" max="150" step="5" value="0" class="accent-zinc-900 cursor-pointer">
+                        </div>
+                        <div class="flex flex-col gap-0.5">
+                            <div class="flex justify-between text-[11px] text-zinc-500">
+                                <span>傾き角度</span>
+                                <span id="text-rot-val">-4°</span>
+                            </div>
+                            <input type="range" id="text-rot-slider" min="-25" max="25" step="1" value="-4" class="accent-zinc-900 cursor-pointer">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ③ 装飾スタンプ・デコレーション -->
+        <section class="flex flex-col gap-3 border-t border-zinc-100 pt-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="w-5 h-5 rounded-full bg-zinc-900 text-white text-xs flex items-center justify-center font-bold">3</span>
+                    <h2 class="text-sm font-bold text-zinc-800">デコレーションスタンプ</h2>
+                </div>
+            </div>
+            <div class="grid grid-cols-4 gap-1.5" id="deco-buttons">
+                <button type="button" data-deco="hearts" class="deco-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-zinc-900 text-white border-zinc-900 shadow-sm">
+                    ハート散らし
+                </button>
+                <button type="button" data-deco="stars" class="deco-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50">
+                    キラキラ星
+                </button>
+                <button type="button" data-deco="crown" class="deco-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50">
+                    王冠＆ハート
+                </button>
+                <button type="button" data-deco="none" class="deco-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-500 border-zinc-200 hover:bg-zinc-50">
+                    なし
+                </button>
+            </div>
+
+            <!-- スタンプのカラー・サイズ・位置調整コントロール -->
+            <div id="deco-controls" class="flex flex-col gap-2.5 bg-zinc-50 border border-zinc-200 rounded-2xl p-3">
+                <!-- スタンプカラー選択 -->
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <input type="color" id="deco-color-picker" value="#FF4D8D">
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold text-zinc-800">スタンプカラー</span>
+                            <span id="deco-color-hex" class="text-[11px] text-zinc-400 font-mono">#FF4D8D</span>
+                        </div>
+                    </div>
+                    <div class="flex gap-1.5" id="deco-preset-colors">
+                        <button type="button" data-color="#27272A" class="w-6 h-6 rounded-full border border-zinc-300 bg-[#27272A] hover:scale-110 transition-transform" aria-label="ブラック"></button>
+                        <button type="button" data-color="#F4F4F5" class="w-6 h-6 rounded-full border border-zinc-300 bg-[#F4F4F5] hover:scale-110 transition-transform" aria-label="ホワイト"></button>
+                        <button type="button" data-color="#FF4D8D" class="w-6 h-6 rounded-full border border-zinc-200 bg-[#FF4D8D] hover:scale-110 transition-transform" aria-label="ピンク"></button>
+                        <button type="button" data-color="#3B82F6" class="w-6 h-6 rounded-full border border-zinc-200 bg-[#3B82F6] hover:scale-110 transition-transform" aria-label="ブルー"></button>
+                        <button type="button" data-color="#FACC15" class="w-6 h-6 rounded-full border border-zinc-200 bg-[#FACC15] hover:scale-110 transition-transform" aria-label="イエロー"></button>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-0.5 pt-2 border-t border-zinc-200">
+                    <div class="flex justify-between text-[11px] text-zinc-500">
+                        <span>スタンプサイズ</span>
+                        <span id="deco-size-val">1.00</span>
+                    </div>
+                    <input type="range" id="deco-size-slider" min="0.5" max="1.6" step="0.05" value="1.0" class="accent-zinc-900 cursor-pointer">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="flex flex-col gap-0.5">
+                        <div class="flex justify-between text-[11px] text-zinc-500">
+                            <span>左右位置</span>
+                            <span id="deco-x-val">0</span>
+                        </div>
+                        <input type="range" id="deco-x-slider" min="-150" max="150" step="5" value="0" class="accent-zinc-900 cursor-pointer">
+                    </div>
+                    <div class="flex flex-col gap-0.5">
+                        <div class="flex justify-between text-[11px] text-zinc-500">
+                            <span>上下位置</span>
+                            <span id="deco-y-val">0</span>
+                        </div>
+                        <input type="range" id="deco-y-slider" min="-150" max="150" step="5" value="0" class="accent-zinc-900 cursor-pointer">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ④ 立体フリル＆レース縁取り（3Dパーツ） -->
+        <section class="flex flex-col gap-3 border-t border-zinc-100 pt-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="w-5 h-5 rounded-full bg-zinc-900 text-white text-xs flex items-center justify-center font-bold">4</span>
+                    <h2 class="text-sm font-bold text-zinc-800">立体フリル・縁取り装飾</h2>
+                </div>
+                <button type="button" id="toggle-frill-btn" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all bg-zinc-900 text-white shadow-sm">
+                    ON
+                </button>
+            </div>
+
+            <div id="frill-controls" class="flex flex-col gap-3 bg-zinc-50 border border-zinc-200 rounded-2xl p-3.5">
+                <div class="grid grid-cols-3 gap-1.5" id="frill-style-buttons">
+                    <button type="button" data-frillstyle="frill" class="frill-style-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-zinc-900 text-white border-zinc-900 shadow-sm">
+                        ふわふわフリル
+                    </button>
+                    <button type="button" data-frillstyle="pearl" class="frill-style-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50">
+                        パール連なり
+                    </button>
+                    <button type="button" data-frillstyle="ribbon_edge" class="frill-style-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50">
+                        サテン縁取り
+                    </button>
+                </div>
+
+                <div class="flex items-center justify-between gap-2 pt-2 border-t border-zinc-200">
+                    <div class="flex items-center gap-2.5 shrink-0">
+                        <input type="color" id="frill-color-picker" value="#FFFFFF">
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold text-zinc-800">フリルカラー</span>
+                            <span id="frill-color-hex" class="text-[11px] text-zinc-400 font-mono">#FFFFFF</span>
+                        </div>
+                    </div>
+                    <div class="flex gap-1.5" id="frill-preset-colors">
+                        <button type="button" data-color="#27272A" class="w-6 h-6 rounded-full border border-zinc-300 bg-[#27272A] hover:scale-110 transition-transform" aria-label="ブラック"></button>
+                        <button type="button" data-color="#F4F4F5" class="w-6 h-6 rounded-full border border-zinc-300 bg-[#F4F4F5] hover:scale-110 transition-transform" aria-label="ホワイト"></button>
+                        <button type="button" data-color="#FF4D8D" class="w-6 h-6 rounded-full border border-zinc-200 bg-[#FF4D8D] hover:scale-110 transition-transform" aria-label="ピンク"></button>
+                        <button type="button" data-color="#3B82F6" class="w-6 h-6 rounded-full border border-zinc-200 bg-[#3B82F6] hover:scale-110 transition-transform" aria-label="ブルー"></button>
+                        <button type="button" data-color="#FACC15" class="w-6 h-6 rounded-full border border-zinc-200 bg-[#FACC15] hover:scale-110 transition-transform" aria-label="イエロー"></button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ⑤ 持ち手のリボン装飾＆ブローチ -->
+        <section class="flex flex-col gap-3 border-t border-zinc-100 pt-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="w-5 h-5 rounded-full bg-zinc-900 text-white text-xs flex items-center justify-center font-bold">5</span>
+                    <h2 class="text-sm font-bold text-zinc-800">持ち手のリボン装飾</h2>
+                </div>
+                <button type="button" id="toggle-ribbon-btn" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all bg-zinc-900 text-white shadow-sm">
+                    ON
+                </button>
+            </div>
+
+            <div id="ribbon-controls" class="flex flex-col gap-3 bg-zinc-50 border border-zinc-200 rounded-2xl p-3.5">
+                <!-- アクセサリーの種類選択 -->
+                <div class="flex flex-col gap-1.5">
+                    <span class="text-xs font-bold text-zinc-700">アクセサリーの種類</span>
+                    <div class="grid grid-cols-4 gap-1.5" id="acc-type-buttons">
+                        <button type="button" data-acctype="ribbon" class="acc-type-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-zinc-900 text-white border-zinc-900 shadow-sm whitespace-nowrap">
+                            リボン
+                        </button>
+                        <button type="button" data-acctype="necktie" class="acc-type-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap">
+                            ネクタイ
+                        </button>
+                        <button type="button" data-acctype="batwing" class="acc-type-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap">
+                            悪魔の羽
+                        </button>
+                        <button type="button" data-acctype="angelwing" class="acc-type-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap">
+                            天使の羽
+                        </button>
+                    </div>
+                </div>
+
+                <!-- アクセカラー -->
+                <div class="flex items-center justify-between gap-2 pt-2 border-t border-zinc-200">
+                    <div class="flex items-center gap-2.5 shrink-0">
+                        <input type="color" id="ribbon-color-picker" value="#FF4D8D">
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold text-zinc-800">アクセカラー</span>
+                            <span id="ribbon-color-hex" class="text-[11px] text-zinc-400 font-mono">#FF4D8D</span>
+                        </div>
+                    </div>
+                    <div class="flex gap-1.5" id="ribbon-preset-colors">
+                        <button type="button" data-color="#27272A" class="w-6 h-6 rounded-full border border-zinc-300 bg-[#27272A] hover:scale-110 transition-transform" aria-label="ブラック"></button>
+                        <button type="button" data-color="#F4F4F5" class="w-6 h-6 rounded-full border border-zinc-300 bg-[#F4F4F5] hover:scale-110 transition-transform" aria-label="ホワイト"></button>
+                        <button type="button" data-color="#FF4D8D" class="w-6 h-6 rounded-full border border-zinc-200 bg-[#FF4D8D] hover:scale-110 transition-transform" aria-label="ピンク"></button>
+                        <button type="button" data-color="#3B82F6" class="w-6 h-6 rounded-full border border-zinc-200 bg-[#3B82F6] hover:scale-110 transition-transform" aria-label="ブルー"></button>
+                        <button type="button" data-color="#FACC15" class="w-6 h-6 rounded-full border border-zinc-200 bg-[#FACC15] hover:scale-110 transition-transform" aria-label="イエロー"></button>
+                    </div>
+                </div>
+
+                <!-- 中央ブローチ選択 -->
+                <div class="flex flex-col gap-1.5 pt-2 border-t border-zinc-200">
+                    <span class="text-xs font-bold text-zinc-700">中央の飾りパーツ（ゴールド枠ブローチ）</span>
+                    <div class="grid grid-cols-3 gap-1.5" id="charm-buttons">
+                        <button type="button" data-charm="heart" class="charm-btn py-1.5 px-1 rounded-xl border text-[11px] font-bold transition-all bg-zinc-900 text-white border-zinc-900 shadow-sm whitespace-nowrap">
+                            ハート
+                        </button>
+                        <button type="button" data-charm="star" class="charm-btn py-1.5 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap">
+                            星
+                        </button>
+                        <button type="button" data-charm="diamond" class="charm-btn py-1.5 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap">
+                            ダイヤ
+                        </button>
+                        <button type="button" data-charm="crown" class="charm-btn py-1.5 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap">
+                            王冠
+                        </button>
+                        <button type="button" data-charm="bear" class="charm-btn py-1.5 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap">
+                            くま
+                        </button>
+                        <button type="button" data-charm="cat" class="charm-btn py-1.5 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap">
+                            猫
+                        </button>
+                        <button type="button" data-charm="dog" class="charm-btn py-1.5 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap">
+                            犬
+                        </button>
+                        <button type="button" data-charm="rabbit" class="charm-btn py-1.5 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap">
+                            うさぎ
+                        </button>
+                        <button type="button" data-charm="none" class="charm-btn py-1.5 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-500 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap">
+                            飾りなし
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 保存＆共有ボタンエリア -->
+        <section class="flex flex-col gap-2.5 pt-2 border-t border-zinc-100">
+            <div class="grid grid-cols-2 gap-2.5">
+                <button type="button" id="save-btn" class="w-full py-3.5 px-4 rounded-2xl bg-white border-2 border-zinc-900 hover:bg-zinc-50 active:scale-[0.99] text-zinc-900 text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-sm">
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    <span>画像を保存</span>
+                </button>
+                <button type="button" id="share-btn" class="w-full py-3.5 px-4 rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-[0.99] text-white text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-sm">
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+                    <span>共有・投稿</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- フッター -->
+        <footer class="pt-2 border-t border-zinc-100 flex flex-col items-center gap-1.5 text-center">
+            <button type="button" id="open-terms-btn" class="text-xs font-bold text-zinc-500 hover:text-zinc-900 underline underline-offset-4 py-1 px-3 rounded-lg transition-colors">
+                利用規約・ガイドラインを確認する
+            </button>
+            <p class="text-[10px] text-zinc-400">© 推し活うちわメーカー</p>
+        </footer>
+    </div>
+
+    <!-- 利用規約モーダル -->
+    <div id="terms-modal" class="fixed inset-0 bg-black/75 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white border border-zinc-200 rounded-3xl max-w-md w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-zinc-100 shrink-0">
+                <h3 class="text-sm font-bold text-zinc-900">利用規約・ガイドライン</h3>
+                <button type="button" id="close-terms-btn" class="p-1.5 rounded-full bg-zinc-100 text-zinc-600 hover:bg-zinc-200">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="p-5 overflow-y-auto flex flex-col gap-4 text-xs text-zinc-700 leading-relaxed">
+                <p class="text-zinc-600">
+                    「推し活うちわメーカー」（以下「本ツール」）をご利用いただく前に、以下の規約をご確認ください。
+                </p>
+                <div class="bg-zinc-50 border border-zinc-200 rounded-2xl p-3.5 flex flex-col gap-1.5">
+                    <h4 class="font-bold text-zinc-900">1. 許可される利用（OK）</h4>
+                    <ul class="list-disc list-inside space-y-1 text-zinc-700">
+                        <li>SNSアイコン・ヘッダー・ポスト画像としての投稿</li>
+                        <li>配信画面・動画・サムネイル・推し活コラージュ等での使用</li>
+                        <li>ライブ・イベント記念の画像作成および個人範囲での印刷</li>
+                    </ul>
+                </div>
+                <div class="bg-zinc-50 border border-zinc-200 rounded-2xl p-3.5 flex flex-col gap-1.5">
+                    <h4 class="font-bold text-zinc-900">2. 禁止事項（NG）</h4>
+                    <ul class="list-disc list-inside space-y-1 text-zinc-700">
+                        <li>出力画像そのもの、または出力画像を用いたグッズ・デジタルデータ等の<strong>販売行為全般</strong></li>
+                        <li>有償・無償を問わず、出力画像を第三者へ素材・データとして<strong>再配布・譲渡する行為</strong></li>
+                        <li>本ツールや出力画像の自作発言</li>
+                        <li>公序良俗に反する利用、誹謗中傷・違法行為・第三者の権利侵害を伴う利用</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="px-5 py-3.5 border-t border-zinc-100 shrink-0">
+                <button type="button" id="accept-terms-btn" class="w-full py-2.5 rounded-xl bg-zinc-900 text-white text-xs font-bold hover:bg-zinc-800 transition-colors">
+                    閉じる
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 画像保存＆共有用プレビューモーダル -->
+    <div id="media-modal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-3 sm:p-4 backdrop-blur-sm">
+        <div class="bg-white border border-zinc-200 rounded-3xl max-w-sm w-full p-4 sm:p-5 flex flex-col items-center gap-3 shadow-2xl max-h-[94vh] overflow-y-auto">
+            <div class="w-full flex items-center justify-between border-b border-zinc-100 pb-2 shrink-0">
+                <h3 id="modal-title" class="text-sm font-bold text-zinc-900">完成したうちわ画像</h3>
+                <button type="button" id="close-modal-btn" class="p-1.5 rounded-full bg-zinc-100 text-zinc-600 hover:bg-zinc-200">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="text-xs text-zinc-700 text-center leading-relaxed bg-zinc-50 p-2.5 rounded-xl border border-zinc-200 w-full">
+                透過PNG画像が完成しました！下の画像を<span class="font-bold text-zinc-950 underline">長押し</span>またはボタンで保存できます。
+            </div>
+
+            <!-- 透過チェック柄背景のプレビュー枠 -->
+            <div class="w-full rounded-2xl overflow-hidden border border-zinc-200 flex items-center justify-center p-2" style="background-color: #f4f4f5; background-image: linear-gradient(45deg, #e4e4e7 25%, transparent 25%), linear-gradient(-45deg, #e4e4e7 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e4e4e7 75%), linear-gradient(-45deg, transparent 75%, #e4e4e7 75%); background-size: 16px 16px; background-position: 0 0, 0 8px, 8px -8px, -8px 0px;">
+                <img id="modal-preview-img" src="" alt="うちわ画像" class="w-full max-h-72 object-contain">
+            </div>
+
+            <!-- アクションボタン群 -->
+            <div class="w-full flex flex-col gap-2">
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" id="modal-direct-dl-btn" class="py-2.5 px-3 rounded-xl bg-zinc-900 text-white text-xs font-bold hover:bg-zinc-800 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        <span>画像をダウンロード</span>
+                    </button>
+                    <button type="button" id="modal-native-share-btn" class="py-2.5 px-3 rounded-xl border border-zinc-300 bg-white text-zinc-800 text-xs font-bold hover:bg-zinc-50 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+                        <span>端末の共有メニュー</span>
+                    </button>
+                </div>
+                <!-- X（旧Twitter）投稿＆テキストコピー補助 -->
+                <div class="grid grid-cols-2 gap-2 pt-1 border-t border-zinc-100">
+                    <a id="modal-x-share-btn" href="#" target="_blank" rel="noopener noreferrer" class="py-2.5 px-3 rounded-xl bg-black text-white text-xs font-bold hover:bg-zinc-800 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5">
+                        <span class="font-sans font-bold">X</span>
+                        <span>Xでポストする</span>
+                    </a>
+                    <button type="button" id="modal-copy-text-btn" class="py-2.5 px-3 rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-700 text-xs font-bold hover:bg-zinc-100 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                        <span>投稿文をコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- トースト通知用コンテナ -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-zinc-900 text-white text-xs font-bold px-5 py-3 rounded-full opacity-0 pointer-events-none transition-opacity duration-300 z-[60] whitespace-nowrap shadow-lg">
+        通知メッセージ
+    </div>
+
+    <script>
+        // アプリケーションの状態管理
+        const state = {
+            shape: 'standard', // 'standard', 'heart', 'cat', 'rabbit', 'bear', 'dog'
+            baseColor: '#18181B',
+            handleColor: '#18181B',
+            bgPattern: 'solid', // 'solid', 'dots', 'gingham', 'glitter'
+            mainText: '指差し\nして',
+            fontStyle: 'pop', // 'pop', 'maru', 'cute'
+            textColor: '#FF4D8D',
+            outline1Color: '#FFFFFF',
+            outline2Color: '#FF85B3',
+            textConfig: {
+                size: 1.0,
+                y: 0,
+                rot: -4
+            },
+            decoType: 'hearts', // 'hearts', 'stars', 'crown', 'none'
+            decoColor: '#FF4D8D',
+            decoConfig: {
+                size: 1.0,
+                x: 0,
+                y: 0
+            },
+            hasFrill: true,
+            frillStyle: 'frill', // 'frill', 'pearl', 'ribbon_edge'
+            frillColor: '#F4F4F5',
+            hasRibbon: true,
+            accType: 'ribbon', // 'ribbon', 'necktie', 'batwing', 'angelwing'
+            ribbonColor: '#FF4D8D',
+            ribbonCharm: 'heart',
+            isSwinging: false,
+            isDarkBg: false,
+            isBackView: false
+        };
+
+        // 推し色テーマカラーセット定義（うちわ面・持ち手・文字・内フチ・外フチ・スタンプ・フリル・リボンを一括設定）
+        const THEME_PRESETS = {
+            pink: {
+                label: 'ピンク',
+                baseColor: '#18181B',
+                handleColor: '#18181B',
+                textColor: '#FF4D8D',
+                outline1Color: '#FFFFFF',
+                outline2Color: '#FF85B3',
+                decoColor: '#FF4D8D',
+                frillColor: '#FF4D8D',
+                ribbonColor: '#FF4D8D'
+            },
+            red: {
+                label: 'レッド',
+                baseColor: '#18181B',
+                handleColor: '#18181B',
+                textColor: '#EF4444',
+                outline1Color: '#FFFFFF',
+                outline2Color: '#FCA5A5',
+                decoColor: '#EF4444',
+                frillColor: '#EF4444',
+                ribbonColor: '#EF4444'
+            },
+            orange: {
+                label: 'オレンジ',
+                baseColor: '#18181B',
+                handleColor: '#18181B',
+                textColor: '#F97316',
+                outline1Color: '#FFFFFF',
+                outline2Color: '#FDBA74',
+                decoColor: '#F97316',
+                frillColor: '#F97316',
+                ribbonColor: '#F97316'
+            },
+            yellow: {
+                label: 'イエロー',
+                baseColor: '#18181B',
+                handleColor: '#18181B',
+                textColor: '#FACC15',
+                outline1Color: '#FFFFFF',
+                outline2Color: '#FEF08A',
+                decoColor: '#FACC15',
+                frillColor: '#FACC15',
+                ribbonColor: '#FACC15'
+            },
+            green: {
+                label: 'グリーン',
+                baseColor: '#18181B',
+                handleColor: '#18181B',
+                textColor: '#10B981',
+                outline1Color: '#FFFFFF',
+                outline2Color: '#6EE7B7',
+                decoColor: '#10B981',
+                frillColor: '#10B981',
+                ribbonColor: '#10B981'
+            },
+            lightblue: {
+                label: '水色',
+                baseColor: '#18181B',
+                handleColor: '#18181B',
+                textColor: '#38BDF8',
+                outline1Color: '#FFFFFF',
+                outline2Color: '#BAE6FD',
+                decoColor: '#38BDF8',
+                frillColor: '#38BDF8',
+                ribbonColor: '#38BDF8'
+            },
+            blue: {
+                label: 'ブルー',
+                baseColor: '#18181B',
+                handleColor: '#18181B',
+                textColor: '#2563EB',
+                outline1Color: '#FFFFFF',
+                outline2Color: '#93C5FD',
+                decoColor: '#2563EB',
+                frillColor: '#2563EB',
+                ribbonColor: '#2563EB'
+            },
+            purple: {
+                label: 'パープル',
+                baseColor: '#18181B',
+                handleColor: '#18181B',
+                textColor: '#A855F7',
+                outline1Color: '#FFFFFF',
+                outline2Color: '#D8B4FE',
+                decoColor: '#A855F7',
+                frillColor: '#A855F7',
+                ribbonColor: '#A855F7'
+            },
+            white: {
+                label: 'ホワイト',
+                baseColor: '#18181B',
+                handleColor: '#18181B',
+                textColor: '#F4F4F5',
+                outline1Color: '#18181B',
+                outline2Color: '#D4D4D8',
+                decoColor: '#F4F4F5',
+                frillColor: '#F4F4F5',
+                ribbonColor: '#F4F4F5'
+            },
+            black: {
+                label: 'ブラック',
+                baseColor: '#18181B',
+                handleColor: '#18181B',
+                textColor: '#27272A',
+                outline1Color: '#F4F4F5',
+                outline2Color: '#71717A',
+                decoColor: '#F4F4F5',
+                frillColor: '#27272A',
+                ribbonColor: '#27272A'
+            }
+        };
+
+        // 共有用ポストテキスト定数
+        const SHARE_POST_TEXT = `＼オリジナル3D推し活うちわが作れる！／
+#推し活うちわメーカー でオリジナルうちわを作りました！`;
+
+        const DEFAULT_CAM_POS = { x: 0, y: 1.05, z: 10.8 };
+        const BACK_CAM_POS = { x: 0, y: 1.05, z: -10.8 };
+        const DEFAULT_CAM_TARGET = { x: 0, y: 0.95, z: 0 };
+
+        let scene, camera, renderer, controls;
+        let uchiwaGroup, fanGroup, handleGroup;
+        let swingPhase = 0;
+
+        // 生成済み画像データのキャッシュ
+        let currentModalBlob = null;
+        let currentModalDataUrl = null;
+        let currentModalFilename = 'uchiwa.png';
+        let isInAppBrowser = false;
+
+        // アプリ内ブラウザ（WebView）判定
+        function detectInAppBrowser() {
+            const ua = navigator.userAgent || navigator.vendor || window.opera || '';
+            const inAppRegex = /Twitter|X-Client|Line\/|Instagram|FBAN|FBAV|BytedanceWebview|musical_ly|TikTok|wv\)/i;
+            const isIOS = /iPhone|iPad|iPod/i.test(ua);
+            const isSafari = /Safari/i.test(ua) && !/CriOS|FxiOS|OPiOS|EdgiOS/i.test(ua);
+            const isIOSWebView = isIOS && !isSafari && !/CriOS|FxiOS/i.test(ua);
+            return inAppRegex.test(ua) || isIOSWebView;
+        }
+
+        // 外部ブラウザで開く試み
+        function tryOpenExternalBrowser() {
+            const currentUrl = window.location.href;
+            const ua = navigator.userAgent || '';
+            const isAndroid = /Android/i.test(ua);
+            if (isAndroid) {
+                const urlWithoutScheme = currentUrl.replace(/^https?:\/\//, '');
+                const scheme = currentUrl.startsWith('https') ? 'https' : 'http';
+                const intentUrl = `intent://${urlWithoutScheme}#Intent;scheme=${scheme};action=android.intent.action.VIEW;end;`;
+                window.location.href = intentUrl;
+                return;
+            }
+            copyTextToClipboard(currentUrl).then(() => {
+                showToast('URLをコピーしました！画面右上の「…」等から「Safariで開く」を押してください');
+            });
+        }
+
+        // テキスト入力の安全なサニタイズ
+        function sanitizeUserText(str, maxLen) {
+            if (typeof str !== 'string') return '';
+            const cleaned = str.replace(/\r\n?/g, '\n').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+            return Array.from(cleaned).slice(0, maxLen).join('');
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            if (!toast) return;
+            toast.textContent = message;
+            toast.classList.remove('opacity-0');
+            clearTimeout(toast._timer);
+            toast._timer = setTimeout(() => {
+                toast.classList.add('opacity-0');
+            }, 2800);
+        }
+
+        // DataURLからBlobへ同期変換するヘルパー
+        function dataURLToBlob(dataURL) {
+            const parts = dataURL.split(',');
+            const mime = parts[0].match(/:(.*?);/)[1];
+            const bstr = atob(parts[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new Blob([u8arr], { type: mime });
+        }
+
+        // クリップボードへ安全にコピー（フォールバック付き）
+        async function copyTextToClipboard(text) {
+            try {
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(text);
+                    return true;
+                }
+            } catch (e) {
+                // フォールバックへ進む
+            }
+            try {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-9999px';
+                textArea.style.top = '0';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                const successful = document.execCommand('copy');
+                document.body.removeChild(textArea);
+                return successful;
+            } catch (err) {
+                return false;
+            }
+        }
+
+        // ファイルダウンロードを実行する関数
+        function triggerFileDownload(blob, dataUrl, filename) {
+            try {
+                if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+                    window.navigator.msSaveOrOpenBlob(blob, filename);
+                    showToast('画像を保存しました！');
+                    return;
+                }
+                const url = blob ? URL.createObjectURL(blob) : dataUrl;
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    if (blob && url.startsWith('blob:')) {
+                        URL.revokeObjectURL(url);
+                    }
+                }, 1000);
+                showToast('ダウンロードを開始しました（保存されない場合は画像を長押ししてください）');
+            } catch (err) {
+                console.error('Download error:', err);
+                showToast('上の画像を長押しして保存してください');
+            }
+        }
+
+        function openMediaModal(blob, dataUrl, filename, titleText) {
+            currentModalBlob = blob;
+            currentModalDataUrl = dataUrl;
+            currentModalFilename = filename;
+            const modal = document.getElementById('media-modal');
+            const img = document.getElementById('modal-preview-img');
+            const title = document.getElementById('modal-title');
+            const xShareBtn = document.getElementById('modal-x-share-btn');
+            img.src = dataUrl;
+            title.textContent = titleText || '完成したうちわ画像';
+            const xIntentUrl = `https://x.com/intent/tweet?text=${encodeURIComponent(SHARE_POST_TEXT)}`;
+            xShareBtn.href = xIntentUrl;
+            modal.classList.remove('hidden');
+        }
+
+        // Three.js 初期化
+        function initThree() {
+            const container = document.getElementById('canvas-container');
+            const canvas = document.getElementById('three-canvas');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color('#F4F4F5');
+
+            camera = new THREE.PerspectiveCamera(40, container.clientWidth / container.clientHeight, 0.1, 100);
+            camera.position.set(DEFAULT_CAM_POS.x, DEFAULT_CAM_POS.y, DEFAULT_CAM_POS.z);
+
+            renderer = new THREE.WebGLRenderer({
+                canvas: canvas,
+                antialias: true,
+                alpha: true,
+                premultipliedAlpha: false,
+                preserveDrawingBuffer: true
+            });
+            renderer.setClearColor(0x000000, 0);
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 4;
+            controls.maxDistance = 18;
+            controls.target.set(DEFAULT_CAM_TARGET.x, DEFAULT_CAM_TARGET.y, DEFAULT_CAM_TARGET.z);
+
+            // スタジオライティング（うちわ表面と立体フリルが綺麗に見える照明）
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+            scene.add(ambientLight);
+
+            const frontLight = new THREE.DirectionalLight(0xffffff, 0.45);
+            frontLight.position.set(3, 8, 10);
+            scene.add(frontLight);
+
+            const backLight = new THREE.DirectionalLight(0xffffff, 0.35);
+            backLight.position.set(-3, 6, -10);
+            scene.add(backLight);
+
+            uchiwaGroup = new THREE.Group();
+            scene.add(uchiwaGroup);
+
+            fanGroup = new THREE.Group();
+            handleGroup = new THREE.Group();
+            uchiwaGroup.add(fanGroup);
+            uchiwaGroup.add(handleGroup);
+
+            buildUchiwa();
+            window.addEventListener('resize', onWindowResize);
+            animate();
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('canvas-container');
+            if (!container) return;
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function applySwingPose(phase) {
+            if (!uchiwaGroup) return;
+            const pivotY = -1.9;
+            const rotZ = Math.sin(phase) * 0.36;
+            const rotY = Math.sin(phase * 0.5) * 0.16;
+            const rotX = Math.sin(phase * 2) * 0.08 - 0.05;
+            const posY = Math.abs(Math.cos(phase)) * 0.16;
+            uchiwaGroup.rotation.z = rotZ;
+            uchiwaGroup.rotation.y = rotY;
+            uchiwaGroup.rotation.x = rotX;
+            uchiwaGroup.position.x = -Math.sin(rotZ) * (-pivotY);
+            uchiwaGroup.position.y = posY + (Math.cos(rotZ) - 1) * (-pivotY);
+        }
+
+        function resetSwingPose() {
+            if (!uchiwaGroup) return;
+            uchiwaGroup.rotation.set(0, 0, 0);
+            uchiwaGroup.position.set(0, 0, 0);
+        }
+
+        function setFixedFrontView() {
+            const savedState = {
+                camPos: camera.position.clone(),
+                camQuat: camera.quaternion.clone(),
+                target: controls.target.clone(),
+                rot: uchiwaGroup.rotation.clone(),
+                pos: uchiwaGroup.position.clone()
+            };
+            camera.position.set(DEFAULT_CAM_POS.x, DEFAULT_CAM_POS.y, DEFAULT_CAM_POS.z);
+            controls.target.set(DEFAULT_CAM_TARGET.x, DEFAULT_CAM_TARGET.y, DEFAULT_CAM_TARGET.z);
+            camera.lookAt(DEFAULT_CAM_TARGET.x, DEFAULT_CAM_TARGET.y, DEFAULT_CAM_TARGET.z);
+            camera.updateMatrixWorld();
+            resetSwingPose();
+            return savedState;
+        }
+
+        function restoreViewState(savedState) {
+            if (!savedState) return;
+            camera.position.copy(savedState.camPos);
+            camera.quaternion.copy(savedState.camQuat);
+            controls.target.copy(savedState.target);
+            controls.update();
+            uchiwaGroup.rotation.copy(savedState.rot);
+            uchiwaGroup.position.copy(savedState.pos);
+        }
+
+        // 高解像度（1600x1600px）の透過静止画を同期生成
+        function generateExportImage() {
+            const EXPORT_SIZE = 1600;
+            const container = document.getElementById('canvas-container');
+            const prevW = container ? container.clientWidth : renderer.domElement.clientWidth;
+            const prevH = container ? container.clientHeight : renderer.domElement.clientHeight;
+            const prevPixelRatio = renderer.getPixelRatio();
+            const prevAspect = camera.aspect;
+            const prevBg = scene.background;
+            const savedView = setFixedFrontView();
+            try {
+                camera.aspect = 1.0;
+                camera.updateProjectionMatrix();
+                scene.background = null;
+                renderer.setClearColor(0x000000, 0);
+                renderer.setPixelRatio(1);
+                renderer.setSize(EXPORT_SIZE, EXPORT_SIZE, false);
+                renderer.render(scene, camera);
+                const dataUrl = renderer.domElement.toDataURL('image/png');
+                const blob = dataURLToBlob(dataUrl);
+                return { blob, dataUrl };
+            } catch (err) {
+                console.error('Export render error:', err);
+                return null;
+            } finally {
+                scene.background = prevBg;
+                camera.aspect = prevAspect;
+                camera.updateProjectionMatrix();
+                renderer.setPixelRatio(prevPixelRatio);
+                renderer.setSize(prevW, prevH, false);
+                restoreViewState(savedView);
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (state.isSwinging) {
+                swingPhase += 0.085;
+                applySwingPose(swingPhase);
+            } else {
+                uchiwaGroup.rotation.z += (0 - uchiwaGroup.rotation.z) * 0.15;
+                uchiwaGroup.rotation.y += (0 - uchiwaGroup.rotation.y) * 0.15;
+                uchiwaGroup.rotation.x += (0 - uchiwaGroup.rotation.x) * 0.15;
+                uchiwaGroup.position.x += (0 - uchiwaGroup.position.x) * 0.15;
+                uchiwaGroup.position.y += (0 - uchiwaGroup.position.y) * 0.15;
+            }
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // うちわ全体を構築
+        function buildUchiwa() {
+            buildFan();
+            buildHandle();
+        }
+
+        // うちわの扇形状（THREE.Shape）を生成
+        function createUchiwaContourShape(type) {
+            const s = new THREE.Shape();
+            const neckW = 0.22;
+
+            if (type === 'standard') {
+                // 定番のジャンボうちわ形状（下部がすぼまり上部が丸い扇形）
+                s.moveTo(-neckW, 0);
+                s.lineTo(neckW, 0);
+                s.bezierCurveTo(1.15, 0.08, 2.02, 0.72, 2.02, 1.82);
+                s.bezierCurveTo(2.02, 2.95, 1.15, 3.68, 0, 3.68);
+                s.bezierCurveTo(-1.15, 3.68, -2.02, 2.95, -2.02, 1.82);
+                s.bezierCurveTo(-2.02, 0.72, -1.15, 0.08, -neckW, 0);
+                s.closePath();
+            } else if (type === 'heart') {
+                // ハート型うちわ
+                s.moveTo(-neckW, 0);
+                s.lineTo(neckW, 0);
+                s.bezierCurveTo(1.95, 0.95, 2.38, 2.85, 1.12, 3.28);
+                s.bezierCurveTo(0.45, 3.48, 0.06, 2.92, 0, 2.65);
+                s.bezierCurveTo(-0.06, 2.92, -0.45, 3.48, -1.12, 3.28);
+                s.bezierCurveTo(-2.38, 2.85, -1.95, 0.95, -neckW, 0);
+                s.closePath();
+            } else if (type === 'cat') {
+                // 猫耳型うちわ
+                const rFace = 1.88;
+                const cyFace = 1.88;
+                const aLow = 0.42;
+                const aHigh = 1.08;
+                const baseAngleRight = -Math.PI / 2 + Math.asin(neckW / rFace);
+                const baseAngleLeft = -Math.PI / 2 - Math.asin(neckW / rFace);
+
+                s.moveTo(-neckW, 0);
+                s.lineTo(neckW, 0);
+                s.absarc(0, cyFace, rFace, baseAngleRight, aLow, false);
+                s.quadraticCurveTo(1.80, 3.35, 1.72, 3.98);
+                s.quadraticCurveTo(1.64, 4.08, 1.48, 4.02);
+                s.quadraticCurveTo(1.10, 3.78, Math.cos(aHigh) * rFace, cyFace + Math.sin(aHigh) * rFace);
+                s.absarc(0, cyFace, rFace, aHigh, Math.PI - aHigh, false);
+                s.quadraticCurveTo(-1.10, 3.78, -1.48, 4.02);
+                s.quadraticCurveTo(-1.64, 4.08, -1.72, 3.98);
+                s.quadraticCurveTo(-1.80, 3.35, Math.cos(Math.PI - aLow) * rFace, cyFace + Math.sin(Math.PI - aLow) * rFace);
+                s.absarc(0, cyFace, rFace, Math.PI - aLow, baseAngleLeft, false);
+                s.closePath();
+            } else if (type === 'rabbit') {
+                // うさ耳型うちわ
+                s.moveTo(-neckW, 0);
+                s.lineTo(neckW, 0);
+                s.bezierCurveTo(1.65, 0.28, 1.82, 1.25, 1.22, 2.15);
+                s.bezierCurveTo(1.45, 3.05, 1.38, 3.92, 0.94, 4.08);
+                s.bezierCurveTo(0.60, 4.18, 0.36, 3.45, 0.28, 2.48);
+                s.quadraticCurveTo(0, 2.34, -0.28, 2.48);
+                s.bezierCurveTo(-0.36, 3.45, -0.60, 4.18, -0.94, 4.08);
+                s.bezierCurveTo(-1.38, 3.92, -1.45, 3.05, -1.22, 2.15);
+                s.bezierCurveTo(-1.82, 1.25, -1.65, 0.28, -neckW, 0);
+                s.closePath();
+            } else if (type === 'bear') {
+                // くま耳型うちわ
+                const rFace = 1.85;
+                const cyFace = 1.85;
+                const rEar = 0.68;
+                const cxEar = 1.46;
+                const cyEar = 3.36;
+                const dx = cxEar;
+                const dy = cyEar - cyFace;
+                const d = Math.hypot(dx, dy);
+                const a = (rFace * rFace - rEar * rEar + d * d) / (2 * d);
+                const h = Math.sqrt(Math.max(0, rFace * rFace - a * a));
+                const xm = (a / d) * dx;
+                const ym = cyFace + (a / d) * dy;
+                const rx = -(dy / d) * h;
+                const ry = (dx / d) * h;
+                const pLow = { x: xm - rx, y: ym - ry };
+                const pHigh = { x: xm + rx, y: ym + ry };
+                const faceRightAngle = Math.atan2(pLow.y - cyFace, pLow.x);
+                const faceTopRightAngle = Math.atan2(pHigh.y - cyFace, pHigh.x);
+                const faceTopLeftAngle = Math.PI - faceTopRightAngle;
+                const faceLeftAngle = Math.PI - faceRightAngle;
+                const rightEarStartAngle = Math.atan2(pLow.y - cyEar, pLow.x - cxEar);
+                const rightEarEndAngle = Math.atan2(pHigh.y - cyEar, pHigh.x - cxEar);
+                const leftEarStartAngle = Math.atan2(pHigh.y - cyEar, -pHigh.x + cxEar);
+                const leftEarEndAngle = Math.atan2(pLow.y - cyEar, -pLow.x + cxEar);
+                const baseAngleRight = -Math.PI / 2 + Math.asin(neckW / rFace);
+                const baseAngleLeft = -Math.PI / 2 - Math.asin(neckW / rFace);
+
+                s.moveTo(-neckW, 0);
+                s.lineTo(neckW, 0);
+                s.absarc(0, cyFace, rFace, baseAngleRight, faceRightAngle, false);
+                s.absarc(cxEar, cyEar, rEar, rightEarStartAngle, rightEarEndAngle, false);
+                s.absarc(0, cyFace, rFace, faceTopRightAngle, faceTopLeftAngle, false);
+                s.absarc(-cxEar, cyEar, rEar, leftEarStartAngle, leftEarEndAngle, false);
+                s.absarc(0, cyFace, rFace, faceLeftAngle, baseAngleLeft, false);
+                s.closePath();
+            } else if (type === 'dog') {
+                // たれ耳の犬型うちわ
+                s.moveTo(-neckW, 0);
+                s.lineTo(neckW, 0);
+                s.bezierCurveTo(1.05, 0.30, 1.42, 0.88, 1.38, 1.38);
+                s.bezierCurveTo(1.75, 1.14, 2.32, 1.14, 2.44, 1.42);
+                s.bezierCurveTo(2.56, 1.70, 2.12, 2.04, 1.42, 2.44);
+                s.bezierCurveTo(0.80, 2.82, 0.43, 2.98, 0.0, 2.98);
+                s.bezierCurveTo(-0.43, 2.98, -0.80, 2.82, -1.42, 2.44);
+                s.bezierCurveTo(-2.12, 2.04, -2.56, 1.70, -2.44, 1.42);
+                s.bezierCurveTo(-2.32, 1.14, -1.75, 1.14, -1.38, 1.38);
+                s.bezierCurveTo(-1.42, 0.88, -1.05, 0.30, -neckW, 0);
+                s.closePath();
+            }
+            return s;
+        }
+
+        // うちわ本体（扇部・デザイン面・裏面・フリル）を構築
+        function buildFan() {
+            while (fanGroup.children.length > 0) {
+                fanGroup.remove(fanGroup.children[0]);
+            }
+
+            const shape = createUchiwaContourShape(state.shape);
+            const fanY = 0.05;
+
+            // 1. うちわのフチ枠（プラスチック外周）
+            const rimMat = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(state.handleColor),
+                roughness: 0.35,
+                metalness: 0.05
+            });
+            const rimGeo = new THREE.ExtrudeGeometry(shape, {
+                steps: 1,
+                depth: 0.045,
+                bevelEnabled: true,
+                bevelThickness: 0.015,
+                bevelSize: 0.025,
+                bevelSegments: 3
+            });
+            rimGeo.translate(0, 0, -0.0225);
+            const rimMesh = new THREE.Mesh(rimGeo, rimMat);
+            rimMesh.position.y = fanY;
+            fanGroup.add(rimMesh);
+
+            // 2. 表面デザインテクスチャ（文字・柄・デコスタンプ）をUVマッピングして貼付
+            const frontTex = createUchiwaFrontTexture();
+            const frontGeo = new THREE.ShapeGeometry(shape, 48);
+            normalizeShapeUVs(frontGeo);
+            const frontMat = new THREE.MeshStandardMaterial({
+                map: frontTex,
+                roughness: state.bgPattern === 'glitter' ? 0.25 : 0.45,
+                metalness: state.bgPattern === 'glitter' ? 0.25 : 0.02
+            });
+            const frontMesh = new THREE.Mesh(frontGeo, frontMat);
+            frontMesh.position.set(0, fanY, 0.039);
+            fanGroup.add(frontMesh);
+
+            // 3. 裏面デザインテクスチャ（裏面も背景色＆柄が反映される）
+            const backTex = createUchiwaBackTexture();
+            const backGeo = new THREE.ShapeGeometry(shape, 48);
+            normalizeShapeUVs(backGeo);
+            const backMat = new THREE.MeshStandardMaterial({
+                map: backTex,
+                roughness: 0.45,
+                metalness: 0.02
+            });
+            const backMesh = new THREE.Mesh(backGeo, backMat);
+            backMesh.rotation.y = Math.PI;
+            backMesh.position.set(0, fanY, -0.039);
+            fanGroup.add(backMesh);
+
+            // 4. 周囲の立体フリル・パール・サテン縁取り
+            if (state.hasFrill) {
+                buildUchiwaEdgeDecoration(shape, fanY);
+            }
+        }
+
+        // ShapeGeometryの頂点座標を [0, 1] のUV座標に正規化
+        function normalizeShapeUVs(geometry) {
+            const pos = geometry.attributes.position;
+            const uv = geometry.attributes.uv;
+            const minX = -2.55, maxX = 2.55;
+            const minY = -0.1, maxY = 4.1;
+            const rangeX = maxX - minX;
+            const rangeY = maxY - minY;
+
+            for (let i = 0; i < pos.count; i++) {
+                const x = pos.getX(i);
+                const y = pos.getY(i);
+                uv.setXY(i, (x - minX) / rangeX, (y - minY) / rangeY);
+            }
+            uv.needsUpdate = true;
+        }
+
+        // 周囲の立体フリル・パール・サテン縁取りを生成
+        function buildUchiwaEdgeDecoration(shape, fanY) {
+            const decoGroup = new THREE.Group();
+            decoGroup.position.y = fanY;
+
+            const frillColor = new THREE.Color(state.frillColor);
+            const frillMat = new THREE.MeshStandardMaterial({
+                color: frillColor,
+                roughness: state.frillStyle === 'pearl' ? 0.18 : 0.42,
+                metalness: state.frillStyle === 'pearl' ? 0.25 : 0.05,
+                side: THREE.DoubleSide
+            });
+
+            const points = shape.getSpacedPoints(360);
+
+            if (state.frillStyle === 'pearl') {
+                // パール連なり装飾（1粒ずつ丸みが見える適切な間隔とサイズに調整）
+                const pearlPoints = shape.getSpacedPoints(92);
+                const pearlGeo = new THREE.SphereGeometry(0.068, 16, 16);
+                for (let i = 0; i < pearlPoints.length - 1; i++) {
+                    const pt = pearlPoints[i];
+                    if (pt.y < 0.14 && Math.abs(pt.x) < 0.30) continue;
+                    const pearl = new THREE.Mesh(pearlGeo, frillMat);
+                    pearl.position.set(pt.x, pt.y, 0);
+                    decoGroup.add(pearl);
+                }
+            } else if (state.frillStyle === 'ribbon_edge') {
+                // サテン立体パイプ縁取り
+                const curvePts = [];
+                for (let i = 0; i < points.length; i++) {
+                    const pt = points[i];
+                    if (pt.y < 0.12 && Math.abs(pt.x) < 0.26) continue;
+                    curvePts.push(new THREE.Vector3(pt.x, pt.y, 0));
+                }
+                if (curvePts.length > 3) {
+                    const curve = new THREE.CatmullRomCurve3(curvePts, false);
+                    const tubeGeo = new THREE.TubeGeometry(curve, 140, 0.055, 10, false);
+                    const tubeMesh = new THREE.Mesh(tubeGeo, frillMat);
+                    decoGroup.add(tubeMesh);
+                }
+            } else {
+                // 丸みのある布がギャザーでうねる立体フリル帯を生成
+                const segments = [];
+                let currentSeg = [];
+
+                for (let i = 0; i < points.length; i++) {
+                    const pt = points[i];
+                    if (pt.y < 0.14 && Math.abs(pt.x) < 0.30) {
+                        if (currentSeg.length >= 4) segments.push(currentSeg);
+                        currentSeg = [];
+                    } else {
+                        currentSeg.push(pt);
+                    }
+                }
+                if (currentSeg.length >= 4) segments.push(currentSeg);
+
+                const frillWidth = 0.20;
+                const clothHalfThick = 0.014;
+
+                segments.forEach(seg => {
+                    const positions = [];
+                    const indices = [];
+                    const n = seg.length;
+
+                    for (let i = 0; i < n; i++) {
+                        const pt = seg[i];
+                        const prev = seg[Math.max(0, i - 1)];
+                        const next = seg[Math.min(n - 1, i + 1)];
+                        const tangent = new THREE.Vector2(next.x - prev.x, next.y - prev.y).normalize();
+                        const normal = new THREE.Vector2(tangent.y, -tangent.x);
+
+                        const wavePhase = i * 0.72;
+                        const sinVal = Math.sin(wavePhase);
+                        const smoothWave = Math.sign(sinVal) * Math.pow(Math.abs(sinVal), 0.72);
+                        const gatherOut = 0.80 + 0.20 * smoothWave;
+                        const waveZ = Math.cos(wavePhase) * 0.04;
+
+                        const innerX = pt.x + normal.x * 0.01;
+                        const innerY = pt.y + normal.y * 0.01;
+
+                        const midR = frillWidth * 0.55 * gatherOut;
+                        const midX = pt.x + normal.x * midR;
+                        const midY = pt.y + normal.y * midR;
+
+                        const outerR = frillWidth * gatherOut;
+                        const outerX = pt.x + normal.x * outerR;
+                        const outerY = pt.y + normal.y * outerR;
+
+                        positions.push(
+                            innerX, innerY, clothHalfThick,
+                            midX, midY, clothHalfThick + waveZ,
+                            outerX, outerY, waveZ * 0.85,
+                            midX, midY, -clothHalfThick + waveZ,
+                            innerX, innerY, -clothHalfThick
+                        );
+                    }
+
+                    const stride = 5;
+                    for (let i = 0; i < n - 1; i++) {
+                        const base = i * stride;
+                        const nextBase = (i + 1) * stride;
+
+                        for (let k = 0; k < stride - 1; k++) {
+                            const a = base + k;
+                            const b = base + k + 1;
+                            const c = nextBase + k + 1;
+                            const d = nextBase + k;
+
+                            indices.push(a, b, c);
+                            indices.push(a, c, d);
+                        }
+                    }
+
+                    const frillGeo = new THREE.BufferGeometry();
+                    frillGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                    frillGeo.setIndex(indices);
+                    frillGeo.computeVertexNormals();
+
+                    const frillMesh = new THREE.Mesh(frillGeo, frillMat);
+                    decoGroup.add(frillMesh);
+                });
+            }
+
+            fanGroup.add(decoGroup);
+        }
+
+        // 表面デザインCanvas（背景・柄・デコスタンプ・うちわ文字）を描画
+        function createUchiwaFrontTexture() {
+            const size = 1024;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            // 1. 背景色とパターン描画
+            drawBackgroundPattern(ctx, size, state.baseColor, state.bgPattern);
+
+            // 2. デコレーションスタンプ描画
+            if (state.decoType !== 'none') {
+                drawDecoStamps(ctx, size, state.decoType);
+            }
+
+            // 3. メインうちわ文字描画（多重フチ取り）
+            if (state.mainText.trim() !== '') {
+                drawUchiwaTypography(ctx, size);
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+            return texture;
+        }
+
+        // 裏面デザインCanvas（背景色＆柄）を描画
+        function createUchiwaBackTexture() {
+            const size = 512;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            drawBackgroundPattern(ctx, size, state.baseColor, state.bgPattern);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+            return texture;
+        }
+
+        // 背景色＆パターン描画ヘルパー
+        function drawBackgroundPattern(ctx, size, baseHex, pattern) {
+            ctx.fillStyle = baseHex;
+            ctx.fillRect(0, 0, size, size);
+
+            const c = new THREE.Color(baseHex);
+            const luminance = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+            const isDark = luminance < 0.45;
+
+            if (pattern === 'dots') {
+                ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(255, 255, 255, 0.65)';
+                const step = size / 14;
+                const radius = step * 0.22;
+                for (let row = 0; row < 16; row++) {
+                    for (let col = 0; col < 16; col++) {
+                        const offsetX = (row % 2) * (step * 0.5);
+                        ctx.beginPath();
+                        ctx.arc(col * step + offsetX, row * step, radius, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            } else if (pattern === 'gingham') {
+                ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.45)';
+                const stripeW = size / 16;
+                for (let x = 0; x < size; x += stripeW * 2) {
+                    ctx.fillRect(x, 0, stripeW, size);
+                }
+                for (let y = 0; y < size; y += stripeW * 2) {
+                    ctx.fillRect(0, y, size, stripeW);
+                }
+            } else if (pattern === 'glitter') {
+                for (let i = 0; i < 650; i++) {
+                    const rx = ((i * 73) % 997) / 997 * size;
+                    const ry = ((i * 137) % 991) / 991 * size;
+                    const r = (i % 3 === 0) ? size * 0.005 : size * 0.0025;
+                    ctx.fillStyle = (i % 2 === 0)
+                        ? 'rgba(255, 255, 255, 0.45)'
+                        : 'rgba(255, 240, 180, 0.35)';
+                    ctx.beginPath();
+                    ctx.arc(rx, ry, r, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        // カラーの明度やトーンを微調整して立体感を作るヘルパー
+        function adjustHexColor(hex, factor) {
+            const c = new THREE.Color(hex || '#FF4D8D');
+            c.r = Math.min(1, Math.max(0, c.r * factor));
+            c.g = Math.min(1, Math.max(0, c.g * factor));
+            c.b = Math.min(1, Math.max(0, c.b * factor));
+            return '#' + c.getHexString();
+        }
+
+        // デコレーションスタンプ（カッティングシート風の洗練されたフラットデザイン）描画
+        function drawDecoStamps(ctx, size, decoType) {
+            const { size: dSize, x: offsetX, y: offsetY } = state.decoConfig;
+            const cx = size * 0.5 + offsetX;
+            const cy = size * 0.56 + offsetY;
+            const rScale = dSize;
+            const mainCol = state.decoColor || '#FF4D8D';
+
+            if (decoType === 'hearts') {
+                const spots = [
+                    { x: cx - size * 0.27 * rScale, y: cy - size * 0.19 * rScale, r: size * 0.036 * rScale, rot: -0.28 },
+                    { x: cx + size * 0.28 * rScale, y: cy - size * 0.17 * rScale, r: size * 0.028 * rScale, rot: 0.26 },
+                    { x: cx - size * 0.28 * rScale, y: cy + size * 0.16 * rScale, r: size * 0.026 * rScale, rot: -0.18 },
+                    { x: cx + size * 0.26 * rScale, y: cy + size * 0.18 * rScale, r: size * 0.038 * rScale, rot: 0.22 },
+                    { x: cx + size * 0.01 * rScale, y: cy - size * 0.26 * rScale, r: size * 0.022 * rScale, rot: 0.08 }
+                ];
+                spots.forEach(s => drawCanvasHeart(ctx, s.x, s.y, s.r, s.rot, mainCol));
+            } else if (decoType === 'stars') {
+                const spots = [
+                    { x: cx - size * 0.27 * rScale, y: cy - size * 0.19 * rScale, r: size * 0.044 * rScale, rot: -0.12 },
+                    { x: cx + size * 0.28 * rScale, y: cy - size * 0.16 * rScale, r: size * 0.032 * rScale, rot: 0.18 },
+                    { x: cx - size * 0.28 * rScale, y: cy + size * 0.16 * rScale, r: size * 0.030 * rScale, rot: -0.14 },
+                    { x: cx + size * 0.26 * rScale, y: cy + size * 0.18 * rScale, r: size * 0.046 * rScale, rot: 0.15 },
+                    { x: cx - size * 0.19 * rScale, y: cy - size * 0.24 * rScale, r: size * 0.018 * rScale, rot: 0.0 }
+                ];
+                spots.forEach(s => drawCanvasStar(ctx, s.x, s.y, s.r, s.rot, mainCol));
+            } else if (decoType === 'crown') {
+                drawCanvasCrown(ctx, cx, cy - size * 0.24 * rScale, size * 0.056 * rScale, mainCol);
+                drawCanvasHeart(ctx, cx - size * 0.27 * rScale, cy + size * 0.15 * rScale, size * 0.030 * rScale, -0.22, mainCol);
+                drawCanvasHeart(ctx, cx + size * 0.27 * rScale, cy + size * 0.15 * rScale, size * 0.030 * rScale, 0.22, mainCol);
+            }
+        }
+
+        // スレンダーでバランスの良いハートスタンプ（白フチのみ）
+        function drawCanvasHeart(ctx, x, y, r, rot, color) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(rot);
+
+            ctx.beginPath();
+            ctx.moveTo(0, r * 0.90);
+            ctx.bezierCurveTo(-r * 1.12, r * 0.18, -r * 1.12, -r * 0.78, 0, -r * 0.26);
+            ctx.bezierCurveTo(r * 1.12, -r * 0.78, r * 1.12, r * 0.18, 0, r * 0.90);
+            ctx.closePath();
+
+            ctx.lineWidth = Math.max(4, r * 0.22);
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // シャープな4点キラキラダイヤスタンプ（白フチのみ）
+        function drawCanvasStar(ctx, x, y, r, rot, color) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(rot);
+
+            ctx.beginPath();
+            ctx.moveTo(0, -r);
+            ctx.quadraticCurveTo(0, 0, r * 0.78, 0);
+            ctx.quadraticCurveTo(0, 0, 0, r);
+            ctx.quadraticCurveTo(0, 0, -r * 0.78, 0);
+            ctx.quadraticCurveTo(0, 0, 0, -r);
+            ctx.closePath();
+
+            ctx.lineWidth = Math.max(4, r * 0.18);
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // 繊細なティアラ風王冠スタンプ（白フチのみ）
+        function drawCanvasCrown(ctx, x, y, r, color) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            ctx.beginPath();
+            ctx.moveTo(-r * 0.95, r * 0.55);
+            ctx.lineTo(r * 0.95, r * 0.55);
+            ctx.lineTo(r * 1.12, -r * 0.42);
+            ctx.lineTo(r * 0.48, -r * 0.04);
+            ctx.lineTo(0, -r * 0.78);
+            ctx.lineTo(-r * 0.48, -r * 0.04);
+            ctx.lineTo(-r * 1.12, -r * 0.42);
+            ctx.closePath();
+
+            ctx.lineWidth = Math.max(4, r * 0.18);
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // 推し活うちわ特有の多重フチ取りタイポグラフィ描画
+        function drawUchiwaTypography(ctx, size) {
+            const safeText = sanitizeUserText(state.mainText, 30);
+            const lines = safeText.split('\n');
+
+            let fontFamily = '"Dela Gothic One", "Zen Maru Gothic", sans-serif';
+            if (state.fontStyle === 'maru') {
+                fontFamily = '"Zen Maru Gothic", sans-serif';
+            } else if (state.fontStyle === 'cute') {
+                fontFamily = '"Kaisei Decol", serif';
+            }
+
+            const { size: tSize, y: offsetY, rot } = state.textConfig;
+            const maxAreaW = size * 0.64 * tSize;
+            const maxAreaH = size * 0.44 * tSize;
+
+            let fontSize = lines.length > 1 ? 128 : 165;
+            fontSize = Math.round(fontSize * tSize);
+            ctx.font = `900 ${fontSize}px ${fontFamily}`;
+
+            const longestW = Math.max(...lines.map(l => ctx.measureText(l).width));
+            if (longestW > maxAreaW) {
+                fontSize = Math.floor(fontSize * (maxAreaW / longestW));
+            }
+            const totalH = lines.length * fontSize * 1.16;
+            if (totalH > maxAreaH) {
+                fontSize = Math.floor(fontSize * (maxAreaH / totalH));
+            }
+            fontSize = Math.max(28, fontSize);
+
+            ctx.save();
+            ctx.translate(size * 0.5, size * 0.56 + offsetY);
+            ctx.rotate((rot * Math.PI) / 180);
+            ctx.font = `900 ${fontSize}px ${fontFamily}`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+
+            const lineHeight = fontSize * 1.15;
+            const startY = -((lines.length - 1) * lineHeight) / 2;
+
+            lines.forEach((line, idx) => {
+                const ly = startY + idx * lineHeight;
+
+                // 1層目：一番外側の太フチ
+                ctx.lineWidth = Math.max(14, fontSize * 0.24);
+                ctx.strokeStyle = state.outline2Color;
+                ctx.strokeText(line, 0, ly);
+
+                // 2層目：内側の白フチ（文字をくっきり浮き立たせる）
+                ctx.lineWidth = Math.max(8, fontSize * 0.13);
+                ctx.strokeStyle = state.outline1Color;
+                ctx.strokeText(line, 0, ly);
+
+                // 3層目：メイン文字塗り
+                ctx.fillStyle = state.textColor;
+                ctx.fillText(line, 0, ly);
+            });
+
+            ctx.restore();
+        }
+
+        // うちわの持ち手＆リボン装飾を構築
+        function buildHandle() {
+            while (handleGroup.children.length > 0) {
+                handleGroup.remove(handleGroup.children[0]);
+            }
+
+            const gripMat = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(state.handleColor),
+                roughness: 0.35,
+                metalness: 0.05
+            });
+
+            const handleShape = new THREE.Shape();
+            const hw = 0.14;
+            const hh = 2.05;
+            handleShape.moveTo(-hw, 0.1);
+            handleShape.lineTo(hw, 0.1);
+            handleShape.lineTo(hw * 0.92, -hh + 0.15);
+            handleShape.quadraticCurveTo(0, -hh - 0.05, -hw * 0.92, -hh + 0.15);
+            handleShape.closePath();
+
+            const gripGeo = new THREE.ExtrudeGeometry(handleShape, {
+                steps: 1,
+                depth: 0.075,
+                bevelEnabled: true,
+                bevelThickness: 0.015,
+                bevelSize: 0.018,
+                bevelSegments: 3
+            });
+            gripGeo.translate(0, 0, -0.0375);
+            const gripMesh = new THREE.Mesh(gripGeo, gripMat);
+            handleGroup.add(gripMesh);
+
+            const centerRibGeo = new THREE.BoxGeometry(0.055, 1.9, 0.125);
+            const centerRibMesh = new THREE.Mesh(centerRibGeo, gripMat);
+            centerRibMesh.position.set(0, -0.95, 0);
+            handleGroup.add(centerRibMesh);
+
+            const holeRingGeo = new THREE.TorusGeometry(0.065, 0.018, 10, 20);
+            const holeRingMesh = new THREE.Mesh(holeRingGeo, gripMat);
+            holeRingMesh.position.set(0, -1.85, 0);
+            handleGroup.add(holeRingMesh);
+
+            if (state.hasRibbon) {
+                const ribbonObj = buildHandleRibbon();
+                handleGroup.add(ribbonObj);
+            }
+        }
+
+        // 持ち手付け根の立体リボン・ネクタイ・羽アクセサリー
+        function buildHandleRibbon() {
+            const ribGroup = new THREE.Group();
+            const ribScale = 1.45;
+            const ribPosZ = 0.095;
+            ribGroup.position.set(0, -0.14, ribPosZ);
+            ribGroup.scale.setScalar(ribScale);
+
+            const ribColorObj = new THREE.Color(state.ribbonColor);
+            const ribMat = new THREE.MeshStandardMaterial({
+                color: ribColorObj,
+                roughness: 0.26,
+                metalness: 0.1
+            });
+            const creaseCol = ribColorObj.clone().multiplyScalar(0.84);
+            const creaseMat = new THREE.MeshStandardMaterial({
+                color: creaseCol,
+                roughness: 0.35,
+                metalness: 0.08
+            });
+            const goldTrimMat = new THREE.MeshStandardMaterial({
+                color: 0xFACC15,
+                roughness: 0.28,
+                metalness: 0.35
+            });
+
+            const bandGeo = new THREE.BoxGeometry(0.34 / ribScale, 0.12, 0.16 / ribScale);
+            const bandMesh = new THREE.Mesh(bandGeo, ribMat);
+            bandMesh.position.set(0, 0.02, -ribPosZ / ribScale);
+            ribGroup.add(bandMesh);
+
+            if (state.accType === 'necktie') {
+                const knotShape = new THREE.Shape();
+                knotShape.moveTo(-0.085, 0.09);
+                knotShape.lineTo(0.085, 0.09);
+                knotShape.lineTo(0.062, -0.05);
+                knotShape.lineTo(-0.062, -0.05);
+                knotShape.closePath();
+                const knotExtrude = new THREE.ExtrudeGeometry(knotShape, {
+                    depth: 0.065,
+                    bevelEnabled: true,
+                    bevelThickness: 0.022,
+                    bevelSize: 0.02,
+                    bevelSegments: 4
+                });
+                const tieKnot = new THREE.Mesh(knotExtrude, ribMat);
+                tieKnot.position.set(0, 0.0, 0.005);
+                ribGroup.add(tieKnot);
+
+                const mainBladeShape = new THREE.Shape();
+                mainBladeShape.moveTo(-0.052, -0.03);
+                mainBladeShape.lineTo(0.052, -0.03);
+                mainBladeShape.lineTo(0.115, -0.68);
+                mainBladeShape.lineTo(0.0, -0.82);
+                mainBladeShape.lineTo(-0.115, -0.68);
+                mainBladeShape.closePath();
+                const mainBladeGeo = new THREE.ExtrudeGeometry(mainBladeShape, {
+                    depth: 0.028,
+                    bevelEnabled: true,
+                    bevelThickness: 0.012,
+                    bevelSize: 0.012,
+                    bevelSegments: 3
+                });
+                const mainBladeMesh = new THREE.Mesh(mainBladeGeo, ribMat);
+                mainBladeMesh.position.set(0, -0.01, 0.018);
+                ribGroup.add(mainBladeMesh);
+
+                const tieBarGeo = new THREE.BoxGeometry(0.16, 0.022, 0.016);
+                const tieBarMesh = new THREE.Mesh(tieBarGeo, goldTrimMat);
+                tieBarMesh.position.set(0.0, -0.44, 0.062);
+                ribGroup.add(tieBarMesh);
+
+                if (state.ribbonCharm !== 'none') {
+                    const charmMesh = buildRibbonCharm(state.ribbonCharm, goldTrimMat);
+                    if (charmMesh) {
+                        charmMesh.scale.setScalar(0.85);
+                        charmMesh.position.set(0, 0.02, 0.098);
+                        ribGroup.add(charmMesh);
+                    }
+                }
+                return ribGroup;
+            }
+
+            if (state.accType === 'batwing') {
+                [-1, 1].forEach(side => {
+                    const batShape = new THREE.Shape();
+                    batShape.moveTo(0, 0.04);
+                    batShape.quadraticCurveTo(side * 0.25, 0.26, side * 0.56, 0.22);
+                    batShape.quadraticCurveTo(side * 0.44, 0.05, side * 0.48, -0.08);
+                    batShape.quadraticCurveTo(side * 0.34, -0.02, side * 0.28, -0.18);
+                    batShape.quadraticCurveTo(side * 0.16, -0.08, side * 0.08, -0.22);
+                    batShape.lineTo(0, -0.05);
+                    batShape.closePath();
+
+                    const batGeo = new THREE.ExtrudeGeometry(batShape, {
+                        depth: 0.026,
+                        bevelEnabled: true,
+                        bevelThickness: 0.012,
+                        bevelSize: 0.012,
+                        bevelSegments: 3
+                    });
+                    const batMesh = new THREE.Mesh(batGeo, ribMat);
+                    batMesh.position.set(side * 0.04, 0.02, 0.01);
+                    batMesh.rotation.y = side * -0.18;
+                    ribGroup.add(batMesh);
+                });
+
+                const centerGemGeo = new THREE.CylinderGeometry(0.085, 0.085, 0.08, 24);
+                centerGemGeo.rotateX(Math.PI / 2);
+                const centerBase = new THREE.Mesh(centerGemGeo, creaseMat);
+                centerBase.position.set(0, 0.02, 0.035);
+                ribGroup.add(centerBase);
+
+                if (state.ribbonCharm !== 'none') {
+                    const charmMesh = buildRibbonCharm(state.ribbonCharm, goldTrimMat);
+                    if (charmMesh) {
+                        charmMesh.position.set(0, 0.02, 0.088);
+                        ribGroup.add(charmMesh);
+                    }
+                }
+                return ribGroup;
+            }
+
+            if (state.accType === 'angelwing') {
+                [-1, 1].forEach(side => {
+                    const wingShape = new THREE.Shape();
+                    wingShape.moveTo(0, 0.04);
+                    wingShape.bezierCurveTo(side * 0.16, 0.16, side * 0.38, 0.30, side * 0.62, 0.28);
+                    wingShape.bezierCurveTo(side * 0.68, 0.20, side * 0.60, 0.06, side * 0.44, 0.02);
+                    wingShape.bezierCurveTo(side * 0.54, -0.04, side * 0.48, -0.15, side * 0.32, -0.14);
+                    wingShape.bezierCurveTo(side * 0.38, -0.19, side * 0.28, -0.27, side * 0.14, -0.21);
+                    wingShape.quadraticCurveTo(side * 0.05, -0.13, 0, -0.05);
+                    wingShape.closePath();
+
+                    const wingGeo = new THREE.ExtrudeGeometry(wingShape, {
+                        depth: 0.026,
+                        bevelEnabled: true,
+                        bevelThickness: 0.014,
+                        bevelSize: 0.014,
+                        bevelSegments: 4
+                    });
+                    const wingMesh = new THREE.Mesh(wingGeo, ribMat);
+                    wingMesh.position.set(side * 0.045, 0.01, 0.012);
+                    wingMesh.rotation.y = side * -0.16;
+                    wingMesh.rotation.z = side * 0.08;
+                    ribGroup.add(wingMesh);
+                });
+
+                const centerGemGeo = new THREE.CylinderGeometry(0.085, 0.085, 0.08, 24);
+                centerGemGeo.rotateX(Math.PI / 2);
+                const centerBase = new THREE.Mesh(centerGemGeo, creaseMat);
+                centerBase.position.set(0, 0.02, 0.035);
+                ribGroup.add(centerBase);
+
+                if (state.ribbonCharm !== 'none') {
+                    const charmMesh = buildRibbonCharm(state.ribbonCharm, goldTrimMat);
+                    if (charmMesh) {
+                        charmMesh.position.set(0, 0.02, 0.088);
+                        ribGroup.add(charmMesh);
+                    }
+                }
+                return ribGroup;
+            }
+
+            // デフォルト：ふんわり立体リボン
+            [-1, 1].forEach(side => {
+                const loopSideGroup = new THREE.Group();
+                loopSideGroup.position.set(side * 0.07, 0.02, 0.02);
+                loopSideGroup.rotation.y = side * -0.18;
+                loopSideGroup.rotation.z = side * 0.06;
+
+                const wingShape = new THREE.Shape();
+                wingShape.moveTo(0, -0.05);
+                wingShape.bezierCurveTo(side * 0.16, -0.24, side * 0.36, -0.34, side * 0.44, -0.25);
+                wingShape.bezierCurveTo(side * 0.48, -0.18, side * 0.44, -0.11, side * 0.40, -0.06);
+                wingShape.bezierCurveTo(side * 0.44, 0.02, side * 0.48, 0.14, side * 0.41, 0.19);
+                wingShape.bezierCurveTo(side * 0.32, 0.22, side * 0.14, 0.12, 0, 0.05);
+                wingShape.closePath();
+
+                const loopGeo = new THREE.ExtrudeGeometry(wingShape, {
+                    depth: 0.045,
+                    bevelEnabled: true,
+                    bevelThickness: 0.024,
+                    bevelSize: 0.02,
+                    bevelSegments: 4
+                });
+                loopGeo.translate(0, 0, -0.022);
+                const loopMesh = new THREE.Mesh(loopGeo, ribMat);
+                loopSideGroup.add(loopMesh);
+                ribGroup.add(loopSideGroup);
+            });
+
+            const knotGeo = new THREE.CylinderGeometry(0.095, 0.105, 0.17, 24);
+            knotGeo.scale(0.85, 1.0, 1.15);
+            const knotMesh = new THREE.Mesh(knotGeo, ribMat);
+            knotMesh.position.set(0, 0.02, 0.04);
+            ribGroup.add(knotMesh);
+
+            if (state.ribbonCharm !== 'none') {
+                const charmMesh = buildRibbonCharm(state.ribbonCharm, goldTrimMat);
+                if (charmMesh) {
+                    charmMesh.position.set(0, 0.02, 0.145);
+                    ribGroup.add(charmMesh);
+                }
+            }
+
+            [-1, 1].forEach(side => {
+                const tailShape = new THREE.Shape();
+                tailShape.moveTo(-0.045, 0);
+                tailShape.lineTo(0.045, 0);
+                tailShape.quadraticCurveTo(0.09, -0.25, 0.13, -0.56);
+                tailShape.lineTo(0.01, -0.45);
+                tailShape.lineTo(-0.11, -0.56);
+                tailShape.quadraticCurveTo(-0.07, -0.25, -0.045, 0);
+                tailShape.closePath();
+                const tailGeo = new THREE.ExtrudeGeometry(tailShape, {
+                    steps: 1,
+                    depth: 0.022,
+                    bevelEnabled: true,
+                    bevelThickness: 0.008,
+                    bevelSize: 0.008,
+                    bevelSegments: 3
+                });
+                const tailMesh = new THREE.Mesh(tailGeo, ribMat);
+                tailMesh.position.set(side * 0.07, -0.04, 0.01);
+                tailMesh.rotation.z = side * 0.22;
+                tailMesh.rotation.y = side * -0.15;
+                tailMesh.rotation.x = -0.06;
+                ribGroup.add(tailMesh);
+            });
+
+            return ribGroup;
+        }
+
+        // 中央ブローチ（ゴールド枠ジュエルパーツ）
+        function buildRibbonCharm(type, goldTrimMat) {
+            const charmGroup = new THREE.Group();
+            const gemMat = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(state.ribbonColor),
+                roughness: 0.14,
+                metalness: 0.12
+            });
+
+            function createExtrudedBrooch(shape, scale = 1.0) {
+                const group = new THREE.Group();
+                const frameGeo = new THREE.ExtrudeGeometry(shape, {
+                    depth: 0.022,
+                    bevelEnabled: true,
+                    bevelThickness: 0.014,
+                    bevelSize: 0.016,
+                    bevelSegments: 3
+                });
+                const frameMesh = new THREE.Mesh(frameGeo, goldTrimMat);
+                group.add(frameMesh);
+
+                const gemGeo = new THREE.ExtrudeGeometry(shape, {
+                    depth: 0.026,
+                    bevelEnabled: true,
+                    bevelThickness: 0.016,
+                    bevelSize: 0.002,
+                    bevelSegments: 4
+                });
+                const gemMesh = new THREE.Mesh(gemGeo, gemMat);
+                gemMesh.position.z = 0.006;
+                group.add(gemMesh);
+                group.scale.set(scale, scale, scale);
+                return group;
+            }
+
+            if (type === 'heart') {
+                const s = new THREE.Shape();
+                s.moveTo(0, -0.075);
+                s.bezierCurveTo(-0.02, -0.055, -0.095, -0.015, -0.095, 0.042);
+                s.bezierCurveTo(-0.095, 0.088, -0.045, 0.098, 0, 0.055);
+                s.bezierCurveTo(0.045, 0.098, 0.095, 0.088, 0.095, 0.042);
+                s.bezierCurveTo(0.095, -0.015, 0.02, -0.055, 0, -0.075);
+                charmGroup.add(createExtrudedBrooch(s, 1.05));
+            } else if (type === 'star') {
+                const s = new THREE.Shape();
+                const outerR = 0.105;
+                const innerR = 0.048;
+                for (let i = 0; i < 10; i++) {
+                    const r = i % 2 === 0 ? outerR : innerR;
+                    const angle = (i * Math.PI) / 5 + Math.PI / 2;
+                    const x = Math.cos(angle) * r;
+                    const y = Math.sin(angle) * r;
+                    if (i === 0) s.moveTo(x, y);
+                    else s.lineTo(x, y);
+                }
+                s.closePath();
+                charmGroup.add(createExtrudedBrooch(s, 1.05));
+            } else if (type === 'diamond') {
+                const s = new THREE.Shape();
+                s.moveTo(0, 0.105);
+                s.lineTo(0.075, 0);
+                s.lineTo(0, -0.105);
+                s.lineTo(-0.075, 0);
+                s.closePath();
+                charmGroup.add(createExtrudedBrooch(s, 1.05));
+            } else if (type === 'crown') {
+                const s = new THREE.Shape();
+                s.moveTo(-0.085, -0.065);
+                s.lineTo(0.085, -0.065);
+                s.lineTo(0.10, 0.055);
+                s.lineTo(0.045, 0.015);
+                s.lineTo(0, 0.082);
+                s.lineTo(-0.045, 0.015);
+                s.lineTo(-0.10, 0.055);
+                s.closePath();
+                charmGroup.add(createExtrudedBrooch(s, 1.02));
+            } else if (type === 'bear') {
+                const s = new THREE.Shape();
+                s.absarc(0, -0.012, 0.078, 0, Math.PI * 2, false);
+                charmGroup.add(createExtrudedBrooch(s, 1.0));
+                [-1, 1].forEach(side => {
+                    const earS = new THREE.Shape();
+                    earS.absarc(side * 0.062, 0.058, 0.032, 0, Math.PI * 2, false);
+                    charmGroup.add(createExtrudedBrooch(earS, 1.0));
+                });
+            } else if (type === 'cat') {
+                const s = new THREE.Shape();
+                s.moveTo(-0.075, 0.01);
+                s.lineTo(-0.072, 0.092);
+                s.lineTo(-0.025, 0.056);
+                s.quadraticCurveTo(0, 0.065, 0.025, 0.056);
+                s.lineTo(0.072, 0.092);
+                s.lineTo(0.075, 0.01);
+                s.bezierCurveTo(0.092, -0.04, 0.055, -0.082, 0, -0.082);
+                s.bezierCurveTo(-0.055, -0.082, -0.092, -0.04, -0.075, 0.01);
+                s.closePath();
+                charmGroup.add(createExtrudedBrooch(s, 1.05));
+            } else if (type === 'dog') {
+                const s = new THREE.Shape();
+                s.moveTo(0, 0.068);
+                s.quadraticCurveTo(0.038, 0.068, 0.058, 0.048);
+                s.quadraticCurveTo(0.125, 0.025, 0.114, -0.055);
+                s.quadraticCurveTo(0.085, -0.088, 0.056, -0.052);
+                s.quadraticCurveTo(0.036, -0.078, 0, -0.078);
+                s.quadraticCurveTo(-0.036, -0.078, -0.056, -0.052);
+                s.quadraticCurveTo(-0.085, -0.088, -0.114, -0.055);
+                s.quadraticCurveTo(-0.125, 0.025, -0.058, 0.048);
+                s.quadraticCurveTo(-0.038, 0.068, 0, 0.068);
+                s.closePath();
+                charmGroup.add(createExtrudedBrooch(s, 1.05));
+            } else if (type === 'rabbit') {
+                const s = new THREE.Shape();
+                s.moveTo(0, 0.022);
+                s.quadraticCurveTo(0.012, 0.022, 0.018, 0.028);
+                s.bezierCurveTo(0.024, 0.085, 0.032, 0.132, 0.052, 0.132);
+                s.bezierCurveTo(0.072, 0.132, 0.066, 0.072, 0.054, 0.018);
+                s.bezierCurveTo(0.086, -0.008, 0.082, -0.078, 0, -0.078);
+                s.bezierCurveTo(-0.082, -0.078, -0.086, -0.008, -0.054, 0.018);
+                s.bezierCurveTo(-0.066, 0.072, -0.072, 0.132, -0.052, 0.132);
+                s.bezierCurveTo(-0.032, 0.132, -0.024, 0.085, -0.018, 0.028);
+                s.quadraticCurveTo(-0.012, 0.022, 0, 0.022);
+                s.closePath();
+                charmGroup.add(createExtrudedBrooch(s, 1.05));
+            }
+            return charmGroup;
+        }
+
+        // UIイベント設定
+        function setupUI() {
+            // ① うちわ形状ボタン
+            const shapeBtns = document.querySelectorAll('.shape-btn');
+            const selectedShapeBadge = document.getElementById('selected-shape-badge');
+            shapeBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    shapeBtns.forEach(b => {
+                        b.className = 'shape-btn py-2.5 px-2 rounded-2xl border text-xs font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap';
+                    });
+                    btn.className = 'shape-btn py-2.5 px-2 rounded-2xl border text-xs font-bold transition-all shadow-sm bg-zinc-900 text-white border-zinc-900 whitespace-nowrap';
+                    state.shape = btn.dataset.shape;
+                    if (selectedShapeBadge) {
+                        selectedShapeBadge.textContent = `選択中：${btn.textContent.trim()}`;
+                    }
+                    buildFan();
+                });
+            });
+
+            // うちわ面カラー
+            const baseColorPicker = document.getElementById('base-color-picker');
+            const baseColorHex = document.getElementById('base-color-hex');
+            function updateBaseColor(newCol) {
+                state.baseColor = newCol.toUpperCase();
+                baseColorPicker.value = state.baseColor;
+                baseColorHex.textContent = state.baseColor;
+                buildFan();
+            }
+            baseColorPicker.addEventListener('input', (e) => updateBaseColor(e.target.value));
+            document.querySelectorAll('#base-preset-colors button').forEach(btn => {
+                btn.addEventListener('click', () => updateBaseColor(btn.dataset.color));
+            });
+
+            // 持ち手＆骨組みカラー
+            const handleColorPicker = document.getElementById('handle-color-picker');
+            const handleColorHex = document.getElementById('handle-color-hex');
+            function updateHandleColor(newCol) {
+                state.handleColor = newCol.toUpperCase();
+                handleColorPicker.value = state.handleColor;
+                handleColorHex.textContent = state.handleColor;
+                buildUchiwa();
+            }
+            handleColorPicker.addEventListener('input', (e) => updateHandleColor(e.target.value));
+            document.querySelectorAll('#handle-preset-colors button').forEach(btn => {
+                btn.addEventListener('click', () => updateHandleColor(btn.dataset.color));
+            });
+
+            // 背景パターン選択
+            const patternBtns = document.querySelectorAll('.pattern-btn');
+            patternBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    patternBtns.forEach(b => {
+                        b.className = 'pattern-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap';
+                    });
+                    btn.className = 'pattern-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-zinc-900 text-white border-zinc-900 shadow-sm whitespace-nowrap';
+                    state.bgPattern = btn.dataset.pattern;
+                    buildFan();
+                });
+            });
+
+            // ② ファンサ定型文チップ
+            const mainTextArea = document.getElementById('main-text');
+            document.querySelectorAll('.text-chip').forEach(chip => {
+                chip.addEventListener('click', () => {
+                    const txt = chip.dataset.text;
+                    mainTextArea.value = txt;
+                    state.mainText = sanitizeUserText(txt, 30);
+                    buildFan();
+                });
+            });
+
+            // メイン文字入力
+            mainTextArea.addEventListener('input', (e) => {
+                state.mainText = sanitizeUserText(e.target.value, 30);
+                buildFan();
+            });
+
+            // フォント選択
+            const fontBtns = document.querySelectorAll('.font-btn');
+            fontBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    fontBtns.forEach(b => {
+                        b.className = 'font-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50';
+                    });
+                    btn.className = 'font-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-zinc-900 text-white border-zinc-900 shadow-sm';
+                    state.fontStyle = btn.dataset.font;
+                    buildFan();
+                });
+            });
+
+            // 文字カラー＆フチ取りカラー
+            const textColorPicker = document.getElementById('text-color-picker');
+            const textColorHex = document.getElementById('text-color-hex');
+            function updateTextColor(newCol) {
+                state.textColor = newCol.toUpperCase();
+                textColorPicker.value = state.textColor;
+                textColorHex.textContent = state.textColor;
+                buildFan();
+            }
+            textColorPicker.addEventListener('input', (e) => updateTextColor(e.target.value));
+            document.querySelectorAll('#text-preset-colors button').forEach(btn => {
+                btn.addEventListener('click', () => updateTextColor(btn.dataset.color));
+            });
+
+            const outline1Picker = document.getElementById('outline1-color-picker');
+            const outline1Hex = document.getElementById('outline1-color-hex');
+            outline1Picker.addEventListener('input', (e) => {
+                state.outline1Color = e.target.value.toUpperCase();
+                outline1Hex.textContent = state.outline1Color;
+                buildFan();
+            });
+
+            const outline2Picker = document.getElementById('outline2-color-picker');
+            const outline2Hex = document.getElementById('outline2-color-hex');
+            outline2Picker.addEventListener('input', (e) => {
+                state.outline2Color = e.target.value.toUpperCase();
+                outline2Hex.textContent = state.outline2Color;
+                buildFan();
+            });
+
+            // 文字サイズ・上下位置・角度スライダー
+            document.getElementById('text-size-slider').addEventListener('input', (e) => {
+                state.textConfig.size = parseFloat(e.target.value);
+                document.getElementById('text-size-val').textContent = state.textConfig.size.toFixed(2);
+                buildFan();
+            });
+            document.getElementById('text-y-slider').addEventListener('input', (e) => {
+                state.textConfig.y = parseInt(e.target.value, 10);
+                document.getElementById('text-y-val').textContent = state.textConfig.y;
+                buildFan();
+            });
+            document.getElementById('text-rot-slider').addEventListener('input', (e) => {
+                state.textConfig.rot = parseInt(e.target.value, 10);
+                document.getElementById('text-rot-val').textContent = `${state.textConfig.rot}°`;
+                buildFan();
+            });
+
+            // ③ デコレーションスタンプ選択
+            const decoBtns = document.querySelectorAll('.deco-btn');
+            const decoControls = document.getElementById('deco-controls');
+            decoBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    decoBtns.forEach(b => {
+                        const isNone = b.dataset.deco === 'none';
+                        b.className = isNone
+                            ? 'deco-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-500 border-zinc-200 hover:bg-zinc-50'
+                            : 'deco-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50';
+                    });
+                    btn.className = 'deco-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-zinc-900 text-white border-zinc-900 shadow-sm';
+                    state.decoType = btn.dataset.deco;
+                    if (decoControls) {
+                        decoControls.classList.toggle('hidden', state.decoType === 'none');
+                    }
+                    buildFan();
+                });
+            });
+
+            // スタンプカラー選択
+            const decoColorPicker = document.getElementById('deco-color-picker');
+            const decoColorHex = document.getElementById('deco-color-hex');
+            function updateDecoColor(newCol) {
+                state.decoColor = newCol.toUpperCase();
+                decoColorPicker.value = state.decoColor;
+                decoColorHex.textContent = state.decoColor;
+                buildFan();
+            }
+            decoColorPicker.value = state.decoColor;
+            decoColorHex.textContent = state.decoColor;
+            decoColorPicker.addEventListener('input', (e) => updateDecoColor(e.target.value));
+            document.querySelectorAll('#deco-preset-colors button').forEach(btn => {
+                btn.addEventListener('click', () => updateDecoColor(btn.dataset.color));
+            });
+
+            // スタンプサイズ・左右位置・上下位置スライダー
+            document.getElementById('deco-size-slider').addEventListener('input', (e) => {
+                state.decoConfig.size = parseFloat(e.target.value);
+                document.getElementById('deco-size-val').textContent = state.decoConfig.size.toFixed(2);
+                buildFan();
+            });
+            document.getElementById('deco-x-slider').addEventListener('input', (e) => {
+                state.decoConfig.x = parseInt(e.target.value, 10);
+                document.getElementById('deco-x-val').textContent = state.decoConfig.x;
+                buildFan();
+            });
+            document.getElementById('deco-y-slider').addEventListener('input', (e) => {
+                state.decoConfig.y = parseInt(e.target.value, 10);
+                document.getElementById('deco-y-val').textContent = state.decoConfig.y;
+                buildFan();
+            });
+
+            // ④ 立体フリル ON/OFF & スタイル＆カラー
+            const toggleFrillBtn = document.getElementById('toggle-frill-btn');
+            const frillControls = document.getElementById('frill-controls');
+            toggleFrillBtn.addEventListener('click', () => {
+                state.hasFrill = !state.hasFrill;
+                if (state.hasFrill) {
+                    toggleFrillBtn.textContent = 'ON';
+                    toggleFrillBtn.className = 'px-3.5 py-1.5 rounded-full text-xs font-bold transition-all bg-zinc-900 text-white shadow-sm';
+                    frillControls.classList.remove('hidden');
+                } else {
+                    toggleFrillBtn.textContent = 'OFF';
+                    toggleFrillBtn.className = 'px-3.5 py-1.5 rounded-full text-xs font-bold transition-all bg-zinc-200 text-zinc-600';
+                    frillControls.classList.add('hidden');
+                }
+                buildFan();
+            });
+
+            const frillStyleBtns = document.querySelectorAll('.frill-style-btn');
+            frillStyleBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    frillStyleBtns.forEach(b => {
+                        b.className = 'frill-style-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50';
+                    });
+                    btn.className = 'frill-style-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-zinc-900 text-white border-zinc-900 shadow-sm';
+                    state.frillStyle = btn.dataset.frillstyle;
+                    buildFan();
+                });
+            });
+
+            const frillColorPicker = document.getElementById('frill-color-picker');
+            const frillColorHex = document.getElementById('frill-color-hex');
+            function updateFrillColor(newCol) {
+                state.frillColor = newCol.toUpperCase();
+                frillColorPicker.value = state.frillColor;
+                frillColorHex.textContent = state.frillColor;
+                buildFan();
+            }
+            frillColorPicker.addEventListener('input', (e) => updateFrillColor(e.target.value));
+            document.querySelectorAll('#frill-preset-colors button').forEach(btn => {
+                btn.addEventListener('click', () => updateFrillColor(btn.dataset.color));
+            });
+
+            // ⑤ 持ち手のリボン装飾
+            const toggleRibbonBtn = document.getElementById('toggle-ribbon-btn');
+            const ribbonControls = document.getElementById('ribbon-controls');
+            toggleRibbonBtn.addEventListener('click', () => {
+                state.hasRibbon = !state.hasRibbon;
+                if (state.hasRibbon) {
+                    toggleRibbonBtn.textContent = 'ON';
+                    toggleRibbonBtn.className = 'px-3.5 py-1.5 rounded-full text-xs font-bold transition-all bg-zinc-900 text-white shadow-sm';
+                    ribbonControls.classList.remove('hidden');
+                } else {
+                    toggleRibbonBtn.textContent = 'OFF';
+                    toggleRibbonBtn.className = 'px-3.5 py-1.5 rounded-full text-xs font-bold transition-all bg-zinc-200 text-zinc-600';
+                    ribbonControls.classList.add('hidden');
+                }
+                buildHandle();
+            });
+
+            const ribbonColorPicker = document.getElementById('ribbon-color-picker');
+            const ribbonColorHex = document.getElementById('ribbon-color-hex');
+            function updateRibbonColor(newCol) {
+                state.ribbonColor = newCol.toUpperCase();
+                ribbonColorPicker.value = state.ribbonColor;
+                ribbonColorHex.textContent = state.ribbonColor;
+                buildHandle();
+            }
+            ribbonColorPicker.addEventListener('input', (e) => updateRibbonColor(e.target.value));
+            document.querySelectorAll('#ribbon-preset-colors button').forEach(btn => {
+                btn.addEventListener('click', () => updateRibbonColor(btn.dataset.color));
+            });
+
+            // 推し色テーマカラーセット一括適用
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const preset = THEME_PRESETS[btn.dataset.theme];
+                    if (!preset) return;
+
+                    state.baseColor = preset.baseColor;
+                    baseColorPicker.value = preset.baseColor;
+                    baseColorHex.textContent = preset.baseColor;
+
+                    state.handleColor = preset.handleColor;
+                    handleColorPicker.value = preset.handleColor;
+                    handleColorHex.textContent = preset.handleColor;
+
+                    state.textColor = preset.textColor;
+                    textColorPicker.value = preset.textColor;
+                    textColorHex.textContent = preset.textColor;
+
+                    state.outline1Color = preset.outline1Color;
+                    outline1Picker.value = preset.outline1Color;
+                    outline1Hex.textContent = preset.outline1Color;
+
+                    state.outline2Color = preset.outline2Color;
+                    outline2Picker.value = preset.outline2Color;
+                    outline2Hex.textContent = preset.outline2Color;
+
+                    if (preset.decoColor) {
+                        state.decoColor = preset.decoColor;
+                        decoColorPicker.value = preset.decoColor;
+                        decoColorHex.textContent = preset.decoColor;
+                    }
+
+                    state.frillColor = preset.frillColor;
+                    frillColorPicker.value = preset.frillColor;
+                    frillColorHex.textContent = preset.frillColor;
+
+                    state.ribbonColor = preset.ribbonColor;
+                    ribbonColorPicker.value = preset.ribbonColor;
+                    ribbonColorHex.textContent = preset.ribbonColor;
+
+                    buildUchiwa();
+                    showToast(`テーマカラー「${preset.label}」を適用しました`);
+                });
+            });
+
+            const accTypeBtns = document.querySelectorAll('.acc-type-btn');
+            accTypeBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    state.accType = btn.dataset.acctype;
+                    accTypeBtns.forEach(b => {
+                        b.className = 'acc-type-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap';
+                    });
+                    btn.className = 'acc-type-btn py-2 px-1 rounded-xl border text-[11px] font-bold transition-all bg-zinc-900 text-white border-zinc-900 shadow-sm whitespace-nowrap';
+                    buildHandle();
+                });
+            });
+
+            const charmBtns = document.querySelectorAll('.charm-btn');
+            charmBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    state.ribbonCharm = btn.dataset.charm;
+                    charmBtns.forEach(b => {
+                        const isNone = b.dataset.charm === 'none';
+                        b.className = isNone
+                            ? 'charm-btn py-1.5 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-500 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap'
+                            : 'charm-btn py-1.5 px-1 rounded-xl border text-[11px] font-bold transition-all bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 whitespace-nowrap';
+                    });
+                    btn.className = 'charm-btn py-1.5 px-1 rounded-xl border text-[11px] font-bold transition-all bg-zinc-900 text-white border-zinc-900 shadow-sm whitespace-nowrap';
+                    buildHandle();
+                });
+            });
+
+            // プレビュー背景切り替え（スタジオ白 / 会場暗転）
+            const toggleBgBtn = document.getElementById('toggle-bg-btn');
+            const canvasContainer = document.getElementById('canvas-container');
+            toggleBgBtn.addEventListener('click', () => {
+                state.isDarkBg = !state.isDarkBg;
+                if (state.isDarkBg) {
+                    scene.background = new THREE.Color('#09090B');
+                    canvasContainer.classList.remove('bg-zinc-100');
+                    canvasContainer.classList.add('bg-zinc-950');
+                    toggleBgBtn.textContent = '背景：ライブ暗転';
+                } else {
+                    scene.background = new THREE.Color('#F4F4F5');
+                    canvasContainer.classList.remove('bg-zinc-950');
+                    canvasContainer.classList.add('bg-zinc-100');
+                    toggleBgBtn.textContent = '背景：スタジオ白';
+                }
+            });
+
+            // 振りアニメーション切り替え
+            const toggleSwingBtn = document.getElementById('toggle-swing-btn');
+            const swingIcon = document.getElementById('swing-icon');
+            const swingLabel = document.getElementById('swing-label');
+            toggleSwingBtn.addEventListener('click', () => {
+                state.isSwinging = !state.isSwinging;
+                if (state.isSwinging) {
+                    toggleSwingBtn.className = 'px-3 py-1.5 rounded-full bg-zinc-900 text-white border border-zinc-900 text-[11px] font-bold hover:bg-zinc-800 transition-all shadow-sm flex items-center gap-1.5 shrink-0 z-10';
+                    if (swingIcon) swingIcon.className = 'fa-solid fa-stop text-[10px]';
+                    swingLabel.textContent = '停止';
+                } else {
+                    toggleSwingBtn.className = 'px-3 py-1.5 rounded-full bg-white/90 backdrop-blur border border-zinc-200 text-zinc-800 text-[11px] font-bold hover:bg-white transition-all shadow-sm flex items-center gap-1.5 shrink-0 z-10';
+                    if (swingIcon) swingIcon.className = 'fa-solid fa-play text-[10px]';
+                    swingLabel.textContent = '振る';
+                }
+            });
+
+            // 正面リセット
+            document.getElementById('reset-pos-btn').addEventListener('click', () => {
+                state.isBackView = false;
+                camera.position.set(DEFAULT_CAM_POS.x, DEFAULT_CAM_POS.y, DEFAULT_CAM_POS.z);
+                controls.target.set(DEFAULT_CAM_TARGET.x, DEFAULT_CAM_TARGET.y, DEFAULT_CAM_TARGET.z);
+                controls.update();
+                resetSwingPose();
+                state.isSwinging = false;
+                toggleSwingBtn.className = 'px-3 py-1.5 rounded-full bg-white/90 backdrop-blur border border-zinc-200 text-zinc-800 text-[11px] font-bold hover:bg-white transition-all shadow-sm flex items-center gap-1.5 shrink-0 z-10';
+                if (swingIcon) swingIcon.className = 'fa-solid fa-play text-[10px]';
+                swingLabel.textContent = '振る';
+                document.getElementById('flip-back-btn').textContent = '裏面を見る';
+            });
+
+            // 裏面・表面フリップ切り替え
+            const flipBackBtn = document.getElementById('flip-back-btn');
+            flipBackBtn.addEventListener('click', () => {
+                state.isBackView = !state.isBackView;
+                if (state.isBackView) {
+                    camera.position.set(BACK_CAM_POS.x, BACK_CAM_POS.y, BACK_CAM_POS.z);
+                    flipBackBtn.textContent = '表面を見る';
+                } else {
+                    camera.position.set(DEFAULT_CAM_POS.x, DEFAULT_CAM_POS.y, DEFAULT_CAM_POS.z);
+                    flipBackBtn.textContent = '裏面を見る';
+                }
+                controls.target.set(DEFAULT_CAM_TARGET.x, DEFAULT_CAM_TARGET.y, DEFAULT_CAM_TARGET.z);
+                controls.update();
+            });
+
+            // 保存＆共有ボタン
+            document.getElementById('save-btn').addEventListener('click', handleSaveImage);
+            document.getElementById('share-btn').addEventListener('click', handleShareImage);
+
+            // モーダル制御
+            document.getElementById('close-modal-btn').addEventListener('click', () => {
+                document.getElementById('media-modal').classList.add('hidden');
+            });
+            document.getElementById('media-modal').addEventListener('click', (e) => {
+                if (e.target.id === 'media-modal') {
+                    document.getElementById('media-modal').classList.add('hidden');
+                }
+            });
+            document.getElementById('modal-direct-dl-btn').addEventListener('click', () => {
+                if (!currentModalBlob && !currentModalDataUrl) return;
+                triggerFileDownload(currentModalBlob, currentModalDataUrl, currentModalFilename);
+            });
+            document.getElementById('modal-native-share-btn').addEventListener('click', async () => {
+                if (!currentModalBlob) return;
+                await executeNativeShare(currentModalBlob, currentModalFilename, true);
+            });
+            document.getElementById('modal-copy-text-btn').addEventListener('click', async () => {
+                const ok = await copyTextToClipboard(SHARE_POST_TEXT);
+                if (ok) {
+                    showToast('投稿用テキストをクリップボードにコピーしました！');
+                } else {
+                    showToast('コピーに失敗しました');
+                }
+            });
+
+            // 利用規約モーダル
+            const termsModal = document.getElementById('terms-modal');
+            document.getElementById('open-terms-btn').addEventListener('click', () => {
+                termsModal.classList.remove('hidden');
+            });
+            document.getElementById('close-terms-btn').addEventListener('click', () => {
+                termsModal.classList.add('hidden');
+            });
+            document.getElementById('accept-terms-btn').addEventListener('click', () => {
+                termsModal.classList.add('hidden');
+            });
+            termsModal.addEventListener('click', (e) => {
+                if (e.target.id === 'terms-modal') {
+                    termsModal.classList.add('hidden');
+                }
+            });
+
+            // アプリ内ブラウザ検知バナー
+            isInAppBrowser = detectInAppBrowser();
+            if (isInAppBrowser) {
+                const banner = document.getElementById('webview-banner');
+                if (banner) banner.classList.remove('hidden');
+            }
+            const openExtBtn = document.getElementById('open-external-browser-btn');
+            if (openExtBtn) {
+                openExtBtn.addEventListener('click', tryOpenExternalBrowser);
+            }
+            const copyUrlBtn = document.getElementById('copy-page-url-btn');
+            if (copyUrlBtn) {
+                copyUrlBtn.addEventListener('click', async () => {
+                    const ok = await copyTextToClipboard(window.location.href);
+                    if (ok) {
+                        showToast('ページURLをコピーしました！SafariやChromeに貼り付けて開いてください');
+                    } else {
+                        showToast('URLのコピーに失敗しました');
+                    }
+                });
+            }
+        }
+
+        async function executeNativeShare(blob, filename, isFromModal = false) {
+            if (!navigator.share) {
+                if (isFromModal) {
+                    showToast('このブラウザでは共有メニュー非対応です。上の画像を長押しして保存してください');
+                }
+                return false;
+            }
+            const file = new File([blob], filename, { type: 'image/png' });
+            try {
+                if (!navigator.canShare || navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        title: '推し活うちわメーカー',
+                        text: SHARE_POST_TEXT,
+                        files: [file]
+                    });
+                    return true;
+                }
+            } catch (err) {
+                if (err.name === 'AbortError') return true;
+                console.warn('File share failed:', err);
+            }
+            if (isFromModal) {
+                showToast('画像付き共有に対応していない環境です。上の画像を長押しして保存してください');
+            }
+            return false;
+        }
+
+        function handleSaveImage() {
+            const result = generateExportImage();
+            if (!result) {
+                showToast('画像の生成に失敗しました');
+                return;
+            }
+            const filename = `my_uchiwa_${Date.now()}.png`;
+            openMediaModal(result.blob, result.dataUrl, filename, '画像の保存（長押しまたはボタン）');
+            triggerFileDownload(result.blob, result.dataUrl, filename);
+        }
+
+        async function handleShareImage() {
+            const result = generateExportImage();
+            if (!result) {
+                showToast('画像の生成に失敗しました');
+                return;
+            }
+            const filename = `my_uchiwa_${Date.now()}.png`;
+            if (isInAppBrowser) {
+                openMediaModal(result.blob, result.dataUrl, filename, '共有・保存用画像');
+                return;
+            }
+            const shared = await executeNativeShare(result.blob, filename, false);
+            if (!shared) {
+                openMediaModal(result.blob, result.dataUrl, filename, '共有・保存用画像');
+            }
+        }
+
+        window.onload = function () {
+            const initApp = () => {
+                initThree();
+                setupUI();
+            };
+
+            if (document.fonts) {
+                // 使用する3種類のフォントを明示的にプリロードしてCanvas初回描画時の未反映を防ぐ
+                Promise.all([
+                    document.fonts.load('900 120px "Dela Gothic One"'),
+                    document.fonts.load('900 120px "Zen Maru Gothic"'),
+                    document.fonts.load('700 120px "Kaisei Decol"'),
+                    document.fonts.ready
+                ]).then(initApp).catch(initApp);
+
+                // 遅延してフォントが完了した場合にもうちわ面を再描画
+                document.fonts.addEventListener('loadingdone', () => {
+                    if (fanGroup) buildFan();
+                });
+            } else {
+                initApp();
+            }
+        };
+    </script>
+</body>
+</html>
