@@ -91,6 +91,28 @@
             <p class="text-xs text-zinc-400 mt-1">オリジナル3D推し活うちわ作成＆共有</p>
         </header>
 
+        <!-- β版利用案内・出力画像＆ソースコードに関する注意事項 -->
+        <section class="bg-zinc-50 border border-zinc-200 rounded-2xl p-3.5 flex flex-col gap-2 text-xs text-zinc-700 leading-relaxed">
+            <div class="flex items-center justify-between gap-2">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-zinc-900 text-white text-[10px] font-bold">
+                    β版のご案内
+                </span>
+                <a href="https://x.com/Sayama_live" target="_blank" rel="noopener noreferrer"
+                    class="text-[11px] font-bold text-zinc-900 underline underline-offset-2 hover:text-zinc-600 transition-colors">
+                    @Sayama_live（X）
+                </a>
+            </div>
+            <p class="text-[11px] text-zinc-800 font-bold">
+                β版につきさやままやのフォロワーさんのみ使用可能です。<br>
+                新規フォローでも構いませんのでフォローの上お使いください！<br>
+                <a href="https://x.com/Sayama_live" target="_blank" rel="noopener noreferrer"
+                    class="text-zinc-700 underline break-all hover:text-zinc-900">https://x.com/Sayama_live</a>
+            </p>
+            <p class="text-[11px] text-zinc-600 pt-1.5 border-t border-zinc-200">
+                本ツールで作成した<span class="font-bold text-zinc-800">出力画像</span>および<span class="font-bold text-zinc-800">ソースコード</span>は、個人での推し活・SNS投稿などの範囲でご利用いただけます。AI学習やデータセット化などの無断二次利用、無断転載や再配布、販売・商用利用、自作発言はご遠慮ください。
+            </p>
+        </section>
+
         <!-- プレビュー（常に上部で固定表示・操作しながらリアルタイム確認可能） -->
         <section class="sticky top-2 z-30 bg-white/95 backdrop-blur-sm pb-2 pt-1 flex flex-col gap-1.5 border-b border-zinc-100">
             <div class="flex items-center justify-between">
@@ -617,8 +639,9 @@
                     <h4 class="font-bold text-zinc-900">2. 禁止事項（NG）</h4>
                     <ul class="list-disc list-inside space-y-1 text-zinc-700">
                         <li>出力画像そのもの、または出力画像を用いたグッズ・デジタルデータ等の<strong>販売行為全般</strong></li>
-                        <li>有償・無償を問わず、出力画像を第三者へ素材・データとして<strong>再配布・譲渡する行為</strong></li>
-                        <li>本ツールや出力画像の自作発言</li>
+                        <li>有償・無償を問わず、出力画像やソースコードを第三者へ素材・データとして<strong>再配布・譲渡する行為</strong></li>
+                        <li>AI学習・機械学習・データセット化等の<strong>無断二次利用</strong></li>
+                        <li>本ツールや出力画像・ソースコードの自作発言</li>
                         <li>公序良俗に反する利用、誹謗中傷・違法行為・第三者の権利侵害を伴う利用</li>
                     </ul>
                 </div>
@@ -708,7 +731,7 @@
             },
             hasFrill: true,
             frillStyle: 'frill', // 'frill', 'pearl', 'ribbon_edge'
-            frillColor: '#F4F4F5',
+            frillColor: '#FFFFFF',
             hasRibbon: true,
             accType: 'ribbon', // 'ribbon', 'necktie', 'batwing', 'angelwing'
             ribbonColor: '#FF4D8D',
@@ -813,8 +836,8 @@
                 baseColor: '#18181B',
                 handleColor: '#18181B',
                 textColor: '#F4F4F5',
-                outline1Color: '#18181B',
-                outline2Color: '#D4D4D8',
+                outline1Color: '#27272A',
+                outline2Color: '#A1A1AA',
                 decoColor: '#F4F4F5',
                 frillColor: '#F4F4F5',
                 ribbonColor: '#F4F4F5'
@@ -834,7 +857,9 @@
 
         // 共有用ポストテキスト定数
         const SHARE_POST_TEXT = `＼オリジナル3D推し活うちわが作れる！／
-#推し活うちわメーカー でオリジナルうちわを作りました！`;
+#まや式推し活うちわメーカー 
+でオリジナルうちわを作りました！
+https://sayamamaya.github.io/MayaUchiwaMaker/`;
 
         const DEFAULT_CAM_POS = { x: 0, y: 1.05, z: 10.8 };
         const BACK_CAM_POS = { x: 0, y: 1.05, z: -10.8 };
